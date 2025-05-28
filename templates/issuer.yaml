@@ -1,0 +1,15 @@
+{{- if .Values.issuer.enabled -}}
+# Copyright (c) 2025, Itential, Inc
+# GNU General Public License v3.0+ (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.txt)
+# Source: iag5/templates/issuer.yaml
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ .Values.issuer.name }}
+  labels:
+    {{- include "iag5.labels" . | nindent 4 }}
+spec:
+  ca:
+    secretName: {{ .Values.issuer.caSecretName}}
+{{- end -}}

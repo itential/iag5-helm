@@ -1,0 +1,47 @@
+suite: Test Certificate Template
+templates:
+  - templates/certificate.yaml
+
+tests:
+  - it: should not render certificate when disabled
+    set:
+      certificate.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render a Certificate resource when enabled
+    set:
+      certificate.enabled: true
+      certificate.hostname: myapp.example.com
+      certificate.duration: 2160h
+      certificate.renewBefore: 360h
+      certificate.issuerRef.name: letsencrypt-prod
+      certificate.issuerRef.kind: ClusterIssuer
+    asserts:
+      - isKind:
+          of: Certificate
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-iag5-tls
+      - equal:
+          path: spec.secretName
+          value: RELEASE-NAME-iag5-tls-secret
+      - equal:
+          path: spec.issuerRef.name
+          value: letsencrypt-prod
+      - equal:
+          path: spec.issuerRef.kind
+          value: ClusterIssuer
+      - equal:
+          path: spec.commonName
+          value: myapp.example.com
+      - equal:
+          path: spec.dnsNames[0]
+          value: myapp.example.com
+      - equal:
+          path: spec.renewBefore
+          value: 360h
+      - equal:
+          path: spec.duration
+          value: 2160h

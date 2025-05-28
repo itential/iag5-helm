@@ -1,0 +1,185 @@
+suite: Test Deployment Runner Template
+templates:
+  - templates/deployment-runner.yaml
+
+tests:
+  - it: should not render runner deployment if replicaCount is not set
+    set:
+      runnerSettings.replicaCount: null
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render runner deployment with correct replicaCount, env vars, and volumes
+    set:
+      runnerSettings:
+        replicaCount: 3
+        env:
+          GATEWAY_RUNNER_USE_TLS: "true"
+          RUNNER_CUSTOM_VAR: "custom"
+      autoscaling:
+        enabled: false
+      image:
+        repository: nginx
+        tag: "1.21"
+        pullPolicy: IfNotPresent
+      service:
+        port: 9090
+      applicationSettings:
+        env:
+          GATEWAY_STORE_ETCD_USE_TLS: "true"
+          APP_ENV: prod
+        etcdTlsSecretName: etcd-tls-secret
+      livenessProbe:
+        enabled: false
+      readinessProbe:
+        enabled: false
+      resources: {}
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.replicas
+          value: 3
+      - equal:
+          path: spec.template.spec.containers[0].command[0]
+          value: "/usr/local/bin/iagctl"
+      - equal:
+          path: spec.template.spec.containers[0].command[1]
+          value: "runner"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: APP_ENV
+            value: "prod"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: RUNNER_CUSTOM_VAR
+            value: "custom"
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: gateway-cert-volume
+            mountPath: /etc/ssl/gateway
+            readOnly: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: etcd-cert-volume
+            mountPath: /etc/ssl/etcd
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: gateway-cert-volume
+            secret:
+              secretName: RELEASE-NAME-iag5-tls-secret
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: etcd-cert-volume
+            secret:
+              secretName: etcd-tls-secret
+
+  - it: should have the correct component label
+    set:
+      serverSettings.replicaCount: 1
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/component"]
+          value: runner
+
+  - it: should have the correct application mode set
+    set:
+      serverSettings.replicaCount: 1
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: GATEWAY_APPLICATION_MODE
+      - equal:
+          path: spec.template.spec.containers[0].env[0].value
+          value: runner
+
+  - it: should have all the expected environment variables rendered
+    set:
+      runnerSettings.replicaCount: 1
+      runnerSettings.env.GATEWAY_RUNNER_CERTIFICATE_FILE: "/etc/ssl/gateway/tls.crt"
+      runnerSettings.env.GATEWAY_RUNNER_PRIVATE_KEY_FILE: "/etc/ssl/gateway/tls.key"
+      runnerSettings.env.GATEWAY_RUNNER_LISTEN_ADDRESS: "0.0.0.0"
+      runnerSettings.env.GATEWAY_RUNNER_USE_TLS: true
+      applicationSettings.env.GATEWAY_APPLICATION_CA_CERTIFICATE_FILE: /etc/ssl/gateway/ca.crt
+      applicationSettings.env.GATEWAY_LOG_LEVEL: DEBUG
+      applicationSettings.env.GATEWAY_COMMANDER_ENABLED: true
+      applicationSettings.env.GATEWAY_STORE_BACKEND: memory
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_CERTIFICATE_FILE
+            value: "/etc/ssl/gateway/tls.crt"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_PRIVATE_KEY_FILE
+            value: "/etc/ssl/gateway/tls.key"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_LISTEN_ADDRESS
+            value: "0.0.0.0"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_USE_TLS
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_APPLICATION_CA_CERTIFICATE_FILE
+            value: "/etc/ssl/gateway/ca.crt"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_LOG_LEVEL
+            value: "DEBUG"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_COMMANDER_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_STORE_BACKEND
+            value: "memory"
+
+  - it: should render the volume and volumeMounts when server TLS is enabled
+    set:
+      runnerSettings.replicaCount: 1
+      runnerSettings.env.GATEWAY_RUNNER_USE_TLS: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: gateway-cert-volume
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].mountPath
+          value: /etc/ssl/gateway
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].readOnly
+          value: true
+
+  - it: should render the volume and volumeMounts when Etcd TLS is enabled
+    set:
+      runnerSettings.replicaCount: 1
+      applicationSettings.env.GATEWAY_STORE_ETCD_USE_TLS: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: etcd-cert-volume
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].mountPath
+          value: /etc/ssl/etcd
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].readOnly
+          value: true

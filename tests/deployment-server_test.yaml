@@ -1,0 +1,188 @@
+suite: Test Deployment Server Template
+templates:
+  - templates/deployment-server.yaml
+
+tests:
+  - it: should not render Deployment when serverSettings.replicaCount is not set
+    set:
+      serverSettings.replicaCount: null
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render Deployment with replicas and env vars
+    set:
+      serverSettings.replicaCount: 2
+      autoscaling.enabled: false
+      image.repository: nginx
+      image.tag: "1.21"
+      image.pullPolicy: IfNotPresent
+      service.port: 8080
+      applicationSettings:
+        env:
+          GATEWAY_STORE_ETCD_USE_TLS: "true"
+          APP_ENV: production
+        etcdTlsSecretName: etcd-tls-secret
+      serverSettings:
+        env:
+          GATEWAY_SERVER_USE_TLS: "true"
+          SERVER_ENV: prod
+      livenessProbe:
+        enabled: false
+      readinessProbe:
+        enabled: false
+      resources: {}
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.replicas
+          value: 2
+      - equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: GATEWAY_APPLICATION_MODE
+      - equal:
+          path: spec.template.spec.containers[0].env[0].value
+          value: server
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: APP_ENV
+            value: "production"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SERVER_ENV
+            value: "prod"
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: gateway-cert-volume
+            mountPath: /etc/ssl/gateway
+            readOnly: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: etcd-cert-volume
+            mountPath: /etc/ssl/etcd
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: gateway-cert-volume
+            secret:
+              secretName: RELEASE-NAME-iag5-tls-secret
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: etcd-cert-volume
+            secret:
+              secretName: etcd-tls-secret
+
+  - it: should have the correct component label
+    set:
+      serverSettings.replicaCount: 1
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/component"]
+          value: server
+
+  - it: should have the correct application mode set
+    set:
+      serverSettings.replicaCount: 1
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: GATEWAY_APPLICATION_MODE
+      - equal:
+          path: spec.template.spec.containers[0].env[0].value
+          value: server
+
+  - it: should have all the expected environment variables rendered
+    set:
+      serverSettings.replicaCount: 1
+      serverSettings.env.GATEWAY_SERVER_DISTRIBUTED_EXECUTION: true
+      serverSettings.env.GATEWAY_SERVER_CERTIFICATE_FILE: "/etc/ssl/gateway/tls.crt"
+      serverSettings.env.GATEWAY_SERVER_PRIVATE_KEY_FILE: "/etc/ssl/gateway/tls.key"
+      serverSettings.env.GATEWAY_SERVER_LISTEN_ADDRESS: "0.0.0.0"
+      serverSettings.env.GATEWAY_SERVER_USE_TLS: true
+      applicationSettings.env.GATEWAY_APPLICATION_CA_CERTIFICATE_FILE: /etc/ssl/gateway/ca.crt
+      applicationSettings.env.GATEWAY_LOG_LEVEL: DEBUG
+      applicationSettings.env.GATEWAY_COMMANDER_ENABLED: true
+      applicationSettings.env.GATEWAY_STORE_BACKEND: memory
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_DISTRIBUTED_EXECUTION
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_CERTIFICATE_FILE
+            value: "/etc/ssl/gateway/tls.crt"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_PRIVATE_KEY_FILE
+            value: "/etc/ssl/gateway/tls.key"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_LISTEN_ADDRESS
+            value: "0.0.0.0"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_USE_TLS
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_APPLICATION_CA_CERTIFICATE_FILE
+            value: "/etc/ssl/gateway/ca.crt"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_LOG_LEVEL
+            value: "DEBUG"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_COMMANDER_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_STORE_BACKEND
+            value: "memory"
+
+  - it: should render the volume and volumeMounts when server TLS is enabled
+    set:
+      serverSettings.replicaCount: 1
+      serverSettings.env.GATEWAY_SERVER_USE_TLS: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: gateway-cert-volume
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].mountPath
+          value: /etc/ssl/gateway
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].readOnly
+          value: true
+
+  - it: should render the volume and volumeMounts when Etcd TLS is enabled
+    set:
+      serverSettings.replicaCount: 1
+      applicationSettings.env.GATEWAY_STORE_ETCD_USE_TLS: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: etcd-cert-volume
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].mountPath
+          value: /etc/ssl/etcd
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].readOnly
+          value: true

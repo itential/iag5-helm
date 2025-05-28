@@ -1,0 +1,114 @@
+{{- if (.Values.runnerSettings).replicaCount }}
+# Copyright (c) 2025, Itential, Inc
+# GNU General Public License v3.0+ (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.txt)
+# Source: iag5/templates/deployment-runner.yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "iag5.fullname" . }}-runner
+  labels:
+    {{- include "iag5.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.runnerSettings.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "iag5.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app.kubernetes.io/component: runner
+        {{- include "iag5.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          command:
+            - "/usr/local/bin/iagctl"
+            - "runner"
+          env:
+            # Application settings
+            - name: GATEWAY_APPLICATION_MODE
+              value: "runner"
+          {{- range $key, $value := .Values.applicationSettings.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+          {{- end }}
+            # Runner mode settings
+          {{- range $key, $value := .Values.runnerSettings.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+          {{- end }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: {{ include "iag5.fullname" . }}-runner
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe.settings | nindent 12 }}
+          {{- end }}
+          {{- if .Values.readinessProbe.enabled }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe.settings | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+          {{- if .Values.runnerSettings.env.GATEWAY_RUNNER_USE_TLS }}
+            - name: gateway-cert-volume
+              mountPath: /etc/ssl/gateway
+              readOnly: true
+          {{- end -}}
+          {{- if .Values.applicationSettings.env.GATEWAY_STORE_ETCD_USE_TLS }}
+            - name: etcd-cert-volume
+              mountPath: /etc/ssl/etcd
+              readOnly: true
+          {{- end -}}
+          {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+      {{- if .Values.runnerSettings.env.GATEWAY_RUNNER_USE_TLS }}
+        - name: gateway-cert-volume
+          secret:
+            secretName: {{ include "iag5.fullname" . }}-tls-secret
+      {{- end -}}
+      {{- if .Values.applicationSettings.env.GATEWAY_STORE_ETCD_USE_TLS }}
+        - name: etcd-cert-volume
+          secret:
+            secretName: {{ .Values.applicationSettings.etcdTlsSecretName }}
+      {{- end -}}
+      {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
