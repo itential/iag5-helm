@@ -16,6 +16,8 @@ For information about installing a client please visit the IAG5 repo.
 
 ### Requirements & Dependencies
 
+#### Certificates
+
 The chart will require a Certificate Authority to be added to the Kubernetes environment. This is
 used by the chart when running with TLS flags enabled. The chart will use this CA to generate the
 necessary certificates using a Kubernetes `Issuer` which is included. The Issuer will issue the
@@ -30,6 +32,27 @@ of this chart. To check if this is already installed run this command:
 ```bash
 kubectl get crds | grep cert-manager
 ```
+
+#### Etcd
+
+Etcd is a strongly consistent, distributed key-value store that provides a reliable way to store
+data that needs to be accessed by a distributed system or cluster of machines. It gracefully handles
+leader elections during network partitions and can tolerate machine failure, even in the leader
+node. This is a required component when running the application in "distributed" mode.
+
+The creation of the Etcd cluster is outside of the scope of this chart. Itential routinely uses the
+helm chart provided by [bitnami](https://artifacthub.io/packages/helm/bitnami/etcd).
+
+#### DNS
+
+This is not a requirement but more of an explanation.
+
+Itential used the ExternalDNS project to facilitate the creation of DNS entries. ExternalDNS
+synchronizes exposed Kubernetes Services and Ingresses with DNS providers. This is not a
+requirement for running the chart. The chart and the application can run without this if needed. We
+chose to use this to provide us with external addresses.
+
+For more information see the [ExternalDNS project](https://github.com/kubernetes-sigs/external-dns).
 
 ### Simple Server
 
@@ -75,7 +98,7 @@ server. It requires an Etcd cluster that it uses for communication. It consists 
 can support TLS connections.
 
 The creation of the Etcd cluster is outside of the scope of this chart. Itential routinely uses the
-helm chart provided by [bitnami](https://artifacthub.io/packages/helm/bitnami/etcd)
+helm chart provided by [bitnami](https://artifacthub.io/packages/helm/bitnami/etcd).
 
 To create this environment the values file must provide the appropriate values for `serverSettings` and
 `runnerSettings`. When the replicaCount is greater than zero in the `serverSettings` config
