@@ -171,11 +171,18 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].volumeMounts[0].readOnly
           value: true
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: gateway-cert-volume
+      - equal:
+          path: spec.template.spec.volumes[0].secret.secretName
+          value: RELEASE-NAME-iag5-tls-secret
 
   - it: should render the volume and volumeMounts when Etcd TLS is enabled
     set:
       serverSettings.replicaCount: 1
       applicationSettings.env.GATEWAY_STORE_ETCD_USE_TLS: true
+      applicationSettings.etcdTlsSecretName: foobar
     asserts:
       - equal:
           path: spec.template.spec.containers[0].volumeMounts[0].name
@@ -186,3 +193,13 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].volumeMounts[0].readOnly
           value: true
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: etcd-cert-volume
+      - equal:
+          path: spec.template.spec.volumes[0].secret.secretName
+          value: foobar
+
+  # - it: should use the correct TLS secret name when these are set
+  #   set:
+  #     serverSettings.replicaCount: 1

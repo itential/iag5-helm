@@ -11,5 +11,5 @@ metadata:
     {{- include "iag5.labels" . | nindent 4 }}
 spec:
   ca:
-    secretName: {{ .Values.issuer.caSecretName}}
+    secretName: {{ .Values.issuer.caSecretName }}
 {{- end -}}
