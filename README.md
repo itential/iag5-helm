@@ -40,12 +40,11 @@ data that needs to be accessed by a distributed system or cluster of machines. I
 leader elections during network partitions and can tolerate machine failure, even in the leader
 node. This is a required component when running the application in "distributed" mode.
 
-The creation of the Etcd cluster is outside of the scope of this chart. Itential routinely uses the
-helm chart provided by [bitnami](https://artifacthub.io/packages/helm/bitnami/etcd).
+This chart was developed with the Bitnami Etcd chart. For more information see the [Bitnami Chart](https://artifacthub.io/packages/helm/bitnami/etcd).
 
 #### DNS
 
-This is not a requirement but more of an explanation.
+This is an optional requirement.
 
 Itential used the ExternalDNS project to facilitate the creation of DNS entries. ExternalDNS
 synchronizes exposed Kubernetes Services and Ingresses with DNS providers. This is not a
@@ -173,5 +172,5 @@ Clone this repo, adhere to the requirements, modify values.yaml appropriately, a
 Kubernetes environment by doing the following:
 
 ```bash
-helm install iag5 ./iag5
+helm install iag5 . -f values.yaml
 ```
