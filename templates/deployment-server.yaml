@@ -10,9 +10,7 @@ metadata:
   labels:
     {{- include "iag5.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
   replicas: {{.Values.serverSettings.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
       {{- include "iag5.selectorLabels" . | nindent 6 }}
@@ -41,22 +39,32 @@ spec:
             # Application settings
             - name: GATEWAY_APPLICATION_MODE
               value: "server"
-          {{- range $key, $value := .Values.applicationSettings.env }}
+            {{- if not .Values.serverSettings.env.GATEWAY_SERVER_LISTEN_ADDRESS }}
+            - name: GATEWAY_SERVER_LISTEN_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            {{- end }}
+            {{- if (.Values.runnerSettings).replicaCount }}
+            - name: GATEWAY_SERVER_DISTRIBUTED_EXECUTION
+              value: "true"
+            {{- end }}
+            {{- range $key, $value := .Values.applicationSettings.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}
-          {{- end }}
+            {{- end }}
             # Server mode settings
-          {{- range $key, $value := .Values.serverSettings.env }}
+            {{- range $key, $value := .Values.serverSettings.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}
-          {{- end }}
+            {{- end }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: {{ include "iag5.fullname" . }}-server
-              containerPort: {{ .Values.service.port }}
+              containerPort: {{ .Values.port }}
               protocol: TCP
           {{- if .Values.livenessProbe.enabled }}
           livenessProbe:

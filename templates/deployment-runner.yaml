@@ -10,9 +10,7 @@ metadata:
   labels:
     {{- include "iag5.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.runnerSettings.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
       {{- include "iag5.selectorLabels" . | nindent 6 }}
@@ -42,6 +40,12 @@ spec:
             - "runner"
           env:
             # Application settings
+            {{- if not .Values.runnerSettings.env.GATEWAY_RUNNER_LISTEN_ADDRESS }}
+            - name: GATEWAY_RUNNER_LISTEN_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            {{- end }}
             - name: GATEWAY_APPLICATION_MODE
               value: "runner"
           {{- range $key, $value := .Values.applicationSettings.env }}
@@ -59,7 +63,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: {{ include "iag5.fullname" . }}-runner
-              containerPort: {{ .Values.service.port }}
+              containerPort: {{ .Values.port }}
               protocol: TCP
           {{- if .Values.livenessProbe.enabled }}
           livenessProbe:

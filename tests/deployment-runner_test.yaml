@@ -84,7 +84,7 @@ tests:
 
   - it: should have the correct component label
     set:
-      serverSettings.replicaCount: 1
+      runnerSettings.replicaCount: 1
     asserts:
       - equal:
           path: spec.template.metadata.labels["app.kubernetes.io/component"]
@@ -92,14 +92,13 @@ tests:
 
   - it: should have the correct application mode set
     set:
-      serverSettings.replicaCount: 1
+      runnerSettings.replicaCount: 1
     asserts:
-      - equal:
-          path: spec.template.spec.containers[0].env[0].name
-          value: GATEWAY_APPLICATION_MODE
-      - equal:
-          path: spec.template.spec.containers[0].env[0].value
-          value: runner
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_APPLICATION_MODE
+            value: runner
 
   - it: should have all the expected environment variables rendered
     set:
@@ -153,6 +152,15 @@ tests:
           content:
             name: GATEWAY_STORE_BACKEND
             value: "memory"
+
+  - it: should render the expected environment variable when there is no GATEWAY_RUNNER_LISTEN_ADDRESS defined
+    set:
+      runnerSettings.replicaCount: 1
+      runnerSettings.env.GATEWAY_RUNNER_USE_TLS: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "GATEWAY_RUNNER_LISTEN_ADDRESS")].valueFrom.fieldRef.fieldPath
+          value: "status.podIP"
 
   - it: should render the volume and volumeMounts when server TLS is enabled
     set:
