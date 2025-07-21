@@ -60,3 +60,33 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Build etcd service DNS name
+Usage: {{ include "iag5.etcdServiceDNS" . }}
+*/}}
+{{- define "iag5.etcdServiceDNS" -}}
+{{- $etcdValues := .Values.etcd -}}
+{{- $serviceName := "" -}}
+{{- $namespace := .Release.Namespace -}}
+
+{{/* Handle different etcd naming patterns */}}
+{{- if and $etcdValues $etcdValues.fullnameOverride -}}
+  {{- $serviceName = $etcdValues.fullnameOverride -}}
+{{- else if and $etcdValues $etcdValues.nameOverride -}}
+  {{- $serviceName = printf "%s-%s" .Release.Name $etcdValues.nameOverride -}}
+{{- else -}}
+  {{- $serviceName = printf "%s-etcd" .Release.Name -}}
+{{- end -}}
+
+{{- printf "%s.%s.svc.cluster.local" $serviceName $namespace -}}
+{{- end -}}
+
+{{/*
+Build etcd service URL with port
+Usage: {{ include "iag5.etcdServiceURL" . }}
+*/}}
+{{- define "iag5.etcdServiceURL" -}}
+{{- $etcdPort := 2379 -}}
+{{- printf "%s:%d" (include "iag5.etcdServiceDNS" .) $etcdPort -}}
+{{- end -}}

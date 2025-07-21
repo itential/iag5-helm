@@ -1,0 +1,12 @@
+dependencies:
+- name: etcd
+  repository: https://charts.bitnami.com/bitnami
+  version: 11.3.0
+- name: cert-manager
+  repository: https://charts.jetstack.io
+  version: v1.12.3
+- name: external-dns
+  repository: https://kubernetes-sigs.github.io/external-dns/
+  version: 1.17.0
+digest: sha256:d26a281b098a3a67a56003992485752090d374c9f7e49f7d3179320459c417bc
+generated: "2025-07-10T13:09:44.814836-04:00"

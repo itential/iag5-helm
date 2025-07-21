@@ -1,15 +1,10 @@
+# Copyright (c) 2024, Itential, Inc
+# GNU General Public License v3.0+ (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.txt)
+---
 apiVersion: v2
 name: iag5
 description: A Helm chart for Kubernetes
-
-# A chart can be either an 'application' or a 'library' chart.
-#
-# Application charts are a collection of templates that can be packaged into versioned archives
-# to be deployed.
-#
-# Library charts provide useful utilities or functions for the chart developer. They're included as
-# a dependency of application charts to inject those utilities and functions into the rendering
-# pipeline. Library charts do not define any templates and therefore cannot be deployed.
+icon: https://www.itential.com/wp-content/uploads/2023/12/Product-Icon_IAG.png
 type: application
 
 # This is the chart version. This version number should be incremented each time you make changes
@@ -22,3 +17,19 @@ version: 0.1.0
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
 appVersion: "1.16.0"
+
+# This application has a conditional dependency on Etcd. When the application is run in a certain
+# configuration this becomes a requirement.
+dependencies:
+  - name: etcd
+    version: "11.3.0"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: etcd.enabled
+  - name: cert-manager
+    version: "1.12.3"
+    repository: "https://charts.jetstack.io"
+    condition: certManager.enabled
+  - name: external-dns
+    version: "1.17.0"
+    repository: "https://kubernetes-sigs.github.io/external-dns/"
+    condition: external-dns.enabled

@@ -46,12 +46,11 @@ data that needs to be accessed by a distributed system or cluster of machines. I
 leader elections during network partitions and can tolerate machine failure, even in the leader
 node. This is a required component when running the application in "distributed" mode.
 
-The creation of the Etcd cluster is outside of the scope of this chart. Itential routinely uses the
-helm chart provided by [bitnami](https://artifacthub.io/packages/helm/bitnami/etcd).
+This chart was developed with the Bitnami Etcd chart. For more information see the [Bitnami Chart](https://artifacthub.io/packages/helm/bitnami/etcd).
 
 #### DNS
 
-This is not a requirement but more of an explanation.
+This is an optional requirement.
 
 Itential used the ExternalDNS project to facilitate the creation of DNS entries. ExternalDNS
 synchronizes exposed Kubernetes Services and Ingresses with DNS providers. This is not a
@@ -179,7 +178,7 @@ Clone this repo, adhere to the requirements, modify values.yaml appropriately, a
 Kubernetes environment by doing the following:
 
 ```bash
-helm install iag5 ./iag5
+helm install iag5 . -f values.yaml
 ```
 
 #### Values
@@ -188,7 +187,7 @@ These values are intended to be refined when this chart is implemented. Many of 
 simply values that were used during development and testing.
 
 | Key | Type | Default | Description |
-|-----|------|---------|-------------|
+|:----|:-----|:--------|:------------|
 | affinity | object | `{}` | Additional affinities |
 | applicationSettings.env.GATEWAY_APPLICATION_CA_CERTIFICATE_FILE | string | `"/etc/ssl/gateway/ca.crt"` | When using certificates with TLS, this variable allows you to set the application CA. This is set on the application level since the CA should be used for all runner, server, and client implementations. |
 | applicationSettings.env.GATEWAY_LOG_LEVEL | string | `"INFO"` | Sets the verbosity of the logs that the gateway displays to the console and file logs. Possible values are: TRACE, DEBUG, INFO, WARN, ERROR, FATAL, DISABLED. |
@@ -208,8 +207,10 @@ simply values that were used during development and testing.
 | certificate.renewBefore | string | `"48h"` | Specifies how long before the certificate expires that cert-manager should try to renew. |
 | external-dns.enabled | bool | `false` | Optional dependency to generate a static external DNS name |
 | hostname | string | `"iag5.example.com"` | The intended hostname to use |
-| image | object | `{"name":"itential.jfrog.io/gateway5-image/gateway5","pullPolicy":"IfNotPresent","repository":"itential.jfrog.io/gateway5-image/gateway5","tag":"5.1.0-dev1-amd64"}` | The Itential image to use, its version, and its location |
-| imagePullSecrets | list | `[{"name":"jfrogcred"}]` | The secrets object used to pull the image from the repo |
+| image.pullPolicy | string | `"IfNotPresent"` | The image pull policy |
+| image.repository | string | `"497639811223.dkr.ecr.us-east-2.amazonaws.com/automation-gateway5"` | The image repository |
+| image.tag | string | `"5.1.1-amd64"` | The image tag |
+| imagePullSecrets | list | `[{"name":""}]` | The secrets object used to pull the image from the repo |
 | issuer.caSecretName | string | `"iag5-ca"` | The CA secret to be used by this issuer when creating TLS certificates. |
 | issuer.enabled | bool | `true` | Toggle to use the issuer object or not |
 | issuer.name | string | `"iag5-ca-issuer"` | The name of this issuer. |
@@ -227,7 +228,7 @@ simply values that were used during development and testing.
 | serverSettings.env.GATEWAY_SERVER_PRIVATE_KEY_FILE | string | `"/etc/ssl/gateway/tls.key"` | The full path to the private key file that the gateway server uses when serving connections to gateway clients. Required when GATEWAY_SERVER_USE_TLS is enabled. If cert-manager is used then this default value doesn't need to change. |
 | serverSettings.env.GATEWAY_SERVER_USE_TLS | bool | `false` | Determines whether a gateway server requires TLS when serving connections to gateway clients. |
 | serverSettings.replicaCount | int | `1` | The number of servers to use. At least one server must be defined. |
-| service.annotations | object | `{"external-dns.alpha.kubernetes.io/hostname":"iag5.pet-sbx.itential.io","external-dns.alpha.kubernetes.io/ttl":"60","service.beta.kubernetes.io/aws-load-balancer-backend-protocol":"tcp","service.beta.kubernetes.io/aws-load-balancer-internal":"false","service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}` | Annotations on the service object, passed through as is |
+| service.annotations | object | `{"external-dns.alpha.kubernetes.io/hostname":"iag5.example.com","external-dns.alpha.kubernetes.io/ttl":"60","service.beta.kubernetes.io/aws-load-balancer-backend-protocol":"tcp","service.beta.kubernetes.io/aws-load-balancer-internal":"false","service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}` | Annotations on the service object, passed through as is |
 | service.name | string | `"iag5-service"` | The name of this Kubernetes service object |
 | service.type | string | `"LoadBalancer"` | The service type |
 | tolerations | list | `[]` | Additonal tolerations |

@@ -50,16 +50,18 @@ external-dns:
   # -- Optional dependency to generate a static external DNS name
   enabled: false
 
-# -- The Itential image to use, its version, and its location
+# The Itential image to use, its version, and its location
 image:
-  repository: "itential.jfrog.io/gateway5-image/gateway5"
-  name: "itential.jfrog.io/gateway5-image/gateway5"
-  tag: "5.1.0-dev1-amd64"
+  # -- The image repository
+  repository: "497639811223.dkr.ecr.us-east-2.amazonaws.com/automation-gateway5"
+  # -- The image tag
+  tag: "5.1.1-amd64"
+  # -- The image pull policy
   pullPolicy: "IfNotPresent"
 
 # -- The secrets object used to pull the image from the repo
 imagePullSecrets:
-  - name: "jfrogcred"
+  - name: ""
 
 # -- Additional pod annotations
 podAnnotations: {}
@@ -81,7 +83,7 @@ service:
     service.beta.kubernetes.io/aws-load-balancer-type: nlb
     service.beta.kubernetes.io/aws-load-balancer-internal: "false"
     service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
-    external-dns.alpha.kubernetes.io/hostname: iag5.pet-sbx.itential.io
+    external-dns.alpha.kubernetes.io/hostname: iag5.example.com
     external-dns.alpha.kubernetes.io/ttl: "60"
 
 # The issuer to be used if using cert-manager to generate the TLS certificates
