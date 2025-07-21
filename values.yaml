@@ -3,19 +3,57 @@
 # Declare variables to be passed into your templates.
 
 # These are used by the NOTES.txt template
-hostname: iag5.pet-sbx.itential.io
+hostname: iag5.example.com
 port: 50051
+
+# Set to false to disable etcd installation
+etcd:
+  enabled: true
+  persistence:
+    enabled: true
+    storageClass: ""  # Use default storage class, or specify one
+    accessModes:
+      - ReadWriteOnce
+    size: 8Gi
+    annotations: {}
+    selector: {}
+
+  # For production, enable auth
+  auth:
+    rbac:
+      create: false
+      allowNoneAuthentication: true
+    token:
+      enabled: false
+
+  # Replica configuration
+  replicaCount: 3
+
+  # Resource limits
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+certManager:
+  enabled: true
+
+# Optional dependency to generate a static external DNS name
+external-dns:
+  enabled: false
 
 # image The Itential image to use, its version, and its location
 image:
-  repository: "itential.jfrog.io/gateway5-image/gateway5"
-  name: "itential.jfrog.io/gateway5-image/gateway5"
-  tag: "5.1.0-dev1-amd64"
+  repository: "497639811223.dkr.ecr.us-east-2.amazonaws.com/automation-gateway5"
+  tag: "5.1.1-amd64"
   pullPolicy: "IfNotPresent"
 
 # imagePullSecrets The secrets object used to pull the image from the repo
 imagePullSecrets:
-  - name: "jfrogcred"
+  - name: ""
 
 podAnnotations: {}
 podLabels: {}
@@ -37,7 +75,7 @@ service:
     service.beta.kubernetes.io/aws-load-balancer-type: nlb
     service.beta.kubernetes.io/aws-load-balancer-internal: "false"
     service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
-    external-dns.alpha.kubernetes.io/hostname: iag5.pet-sbx.itential.io
+    external-dns.alpha.kubernetes.io/hostname: iag5.example.com
     external-dns.alpha.kubernetes.io/ttl: "60"
 
 # ingress The Kubernetes ingress object for this application.
@@ -48,13 +86,11 @@ ingress:
   name: "iag5-ingress"
   # className The ingress controller class name
   className: "nginx"
-  hostname: "iag5.pet-sbx.itential.io"
+  hostname: "iag5.example.com"
   annotations:
-    # cert-manager.io/cluster-issuer: letsencrypt-staging
     nginx.ingress.kubernetes.io/rewrite-target: /
-    external-dns.alpha.kubernetes.io/hostname: iag5.pet-sbx.itential.io
+    external-dns.alpha.kubernetes.io/hostname: iag5.example.com
     external-dns.alpha.kubernetes.io/ttl: "60"
-    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
   tls: []
 
 issuer:
@@ -69,7 +105,7 @@ certificate:
     kind: Issuer
   renewBefore: 48h
   duration: 2160h
-  hostname: iag5.pet-sbx.itential.io
+  hostname: iag5.example.com
 
 resources: {}
 
@@ -103,16 +139,20 @@ readinessProbe:
 autoscaling:
   enabled: false
 
+# Runner settings depend on the architecture that is being installed and are not always required.
 runnerSettings:
   replicaCount: 3
+  runnerTlsSecretName:
   env:
     GATEWAY_RUNNER_CERTIFICATE_FILE: /etc/ssl/gateway/tls.crt
     GATEWAY_RUNNER_PRIVATE_KEY_FILE: /etc/ssl/gateway/tls.key
     GATEWAY_RUNNER_LISTEN_ADDRESS: "0.0.0.0"
     GATEWAY_RUNNER_USE_TLS: false
 
+# At least one server must be defined.
 serverSettings:
   replicaCount: 1
+  serverTlsSecretName:
   env:
     GATEWAY_SERVER_DISTRIBUTED_EXECUTION: true
     GATEWAY_SERVER_CERTIFICATE_FILE: "/etc/ssl/gateway/tls.crt"
@@ -127,7 +167,7 @@ applicationSettings:
     GATEWAY_LOG_LEVEL: INFO
     GATEWAY_COMMANDER_ENABLED: false
     GATEWAY_STORE_BACKEND: etcd
-    GATEWAY_STORE_ETCD_HOSTS: "etcd.default.svc.cluster.local:2379"
+    GATEWAY_STORE_ETCD_HOSTS: "iag5-etcd.default.svc.cluster.local:2379"
     GATEWAY_STORE_ETCD_USE_TLS: false
     GATEWAY_STORE_ETCD_CA_CERTIFICATE_FILE: /etc/ssl/etcd/ca.crt
     GATEWAY_STORE_ETCD_CERTIFICATE_FILE: /etc/ssl/etcd/tls-client.crt

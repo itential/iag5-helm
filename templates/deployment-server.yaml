@@ -29,6 +29,22 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      {{- if .Values.etcd.enabled }}
+      initContainers:
+        # Wait for the etcd cluster to become available
+        - name: wait-for-etcd-cluster
+          image: bitnami/etcd:latest
+          command:
+          - sh
+          - -c
+          - |
+            echo "Waiting for etcd cluster..."
+            until etcdctl endpoint health --endpoints={{ include "iag5.etcdServiceURL" . }}; do
+              echo "etcd cluster not ready, waiting..."
+              sleep 5
+            done
+            echo "etcd cluster is ready!"
+      {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
