@@ -16,6 +16,12 @@ For information about installing a client please visit the IAG5 repo.
 
 ### Requirements & Dependencies
 
+| Repository | Name | Version |
+|:-----------|:-----|:--------|
+| https://charts.bitnami.com/bitnami | etcd | 11.3.0 |
+| https://charts.jetstack.io | cert-manager | 1.12.3 |
+| https://kubernetes-sigs.github.io/external-dns/ | external-dns | 1.17.0 |
+
 #### Certificates
 
 The chart will require a Certificate Authority to be added to the Kubernetes environment. This is
@@ -174,3 +180,57 @@ Kubernetes environment by doing the following:
 ```bash
 helm install iag5 . -f values.yaml
 ```
+
+#### Values
+
+These values are intended to be refined when this chart is implemented. Many of these values are
+simply values that were used during development and testing.
+
+| Key | Type | Default | Description |
+|:----|:-----|:--------|:------------|
+| affinity | object | `{}` | Additional affinities |
+| applicationSettings.env.GATEWAY_APPLICATION_CA_CERTIFICATE_FILE | string | `"/etc/ssl/gateway/ca.crt"` | When using certificates with TLS, this variable allows you to set the application CA. This is set on the application level since the CA should be used for all runner, server, and client implementations. |
+| applicationSettings.env.GATEWAY_LOG_LEVEL | string | `"INFO"` | Sets the verbosity of the logs that the gateway displays to the console and file logs. Possible values are: TRACE, DEBUG, INFO, WARN, ERROR, FATAL, DISABLED. |
+| applicationSettings.env.GATEWAY_STORE_BACKEND | string | `"memory"` | Sets the backend type for persistent data storage. Itential Automation Gateway (IAG) uses stores as key-value databases to persistently save objects. IAG supports three types of store backends: "local", "memory", "etcd", "dynamodb" |
+| applicationSettings.env.GATEWAY_STORE_ETCD_CA_CERTIFICATE_FILE | string | `"/etc/ssl/etcd/ca.crt"` | The certificate authority certificate file that the gateway uses when it connects to the etcd store backend. |
+| applicationSettings.env.GATEWAY_STORE_ETCD_CERTIFICATE_FILE | string | `"/etc/ssl/etcd/tls-client.crt"` | The public certificate file that the gateway uses when it connects to the etcd store backend. |
+| applicationSettings.env.GATEWAY_STORE_ETCD_CLIENT_CERT_AUTH | bool | `false` | Determines the TLS authentication method used when connecting to an etcd store backend and GATEWAY_STORE_ETCD_USE_TLS is set to true. More information on this variable can be found in the documentation here: https://docs.itential.com/docs/gateway-store-variables |
+| applicationSettings.env.GATEWAY_STORE_ETCD_HOSTS | string | `""` | Sets the etcd hosts that the gateway connects to for backend storage. A host entry consists of an address and port: hostname:port. If there are multiple etcd hosts, enter them as a space separated list: hostname1:port hostname2:port. |
+| applicationSettings.env.GATEWAY_STORE_ETCD_PRIVATE_KEY_FILE | string | `"/etc/ssl/etcd/tls-client.key"` | The private key file that the gateway uses when it connects to the etcd store backend. |
+| applicationSettings.env.GATEWAY_STORE_ETCD_USE_TLS | bool | `false` | Determines whether the gateway uses TLS authentication when it connects to the etcd store backend. |
+| applicationSettings.etcdTlsSecretName | string | `"etcd-tls-secret"` | The name of the etcd TLS secret. This is mounted as a volume by the deployment and contains the Etcd TLS certs and keys. |
+| certManager.enabled | bool | `true` | Toggles the use of cert-manager for managing the TLS certificates. Setting this to false means that creation of the TLS certificates will be manual and outside of the chart. |
+| certificate.duration | string | `"2160h"` | Specifies how long the certificate should be valid for (its lifetime). |
+| certificate.enabled | bool | `true` | Toggle to use the certificate object or not |
+| certificate.issuerRef.kind | string | `"Issuer"` | The issuer type |
+| certificate.issuerRef.name | string | `"iag5-ca-issuer"` | The name of the issuer with the CA reference. |
+| certificate.renewBefore | string | `"48h"` | Specifies how long before the certificate expires that cert-manager should try to renew. |
+| external-dns.enabled | bool | `false` | Optional dependency to generate a static external DNS name |
+| hostname | string | `"iag5.example.com"` | The intended hostname to use |
+| image.pullPolicy | string | `"IfNotPresent"` | The image pull policy |
+| image.repository | string | `"497639811223.dkr.ecr.us-east-2.amazonaws.com/automation-gateway5"` | The image repository |
+| image.tag | string | `"5.1.1-amd64"` | The image tag |
+| imagePullSecrets | list | `[{"name":""}]` | The secrets object used to pull the image from the repo |
+| issuer.caSecretName | string | `"iag5-ca"` | The CA secret to be used by this issuer when creating TLS certificates. |
+| issuer.enabled | bool | `true` | Toggle to use the issuer object or not |
+| issuer.name | string | `"iag5-ca-issuer"` | The name of this issuer. |
+| nodeSelector | object | `{}` | Additional nodeSelectors |
+| podAnnotations | object | `{}` | Additional pod annotations |
+| podLabels | object | `{}` | Additional pod labels |
+| podSecurityContext | object | `{}` | Additional pod security context |
+| port | int | `50051` | The intended port to use |
+| runnerSettings.env.GATEWAY_RUNNER_CERTIFICATE_FILE | string | `"/etc/ssl/gateway/tls.crt"` | Sets the full path to the certificate file that the gateway runner uses when it connects to a gateway server. This setting is required when GATEWAY_RUNNER_USE_TLS is enabled. If cert-manager is used then this default value doesn't need to change. |
+| runnerSettings.env.GATEWAY_RUNNER_PRIVATE_KEY_FILE | string | `"/etc/ssl/gateway/tls.key"` | Sets the full path to the private key file the gateway runner uses when it connects to a gateway server. This setting is required when GATEWAY_RUNNER_USE_TLS is enabled. If cert-manager is used then this default value doesn't need to change. |
+| runnerSettings.env.GATEWAY_RUNNER_USE_TLS | bool | `false` | Determines whether or not a gateway runner requires TLS when connecting to a gateway server. |
+| runnerSettings.replicaCount | int | `0` | The number of runners to use. Set to zero to disable distributed runners. |
+| securityContext | object | `{}` | Additional security context |
+| serverSettings.env.GATEWAY_SERVER_CERTIFICATE_FILE | string | `"/etc/ssl/gateway/tls.crt"` | The full path to the certificate file the gateway server uses when it serves connections to gateway clients. This setting is required when GATEWAY_SERVER_USE_TLS is enabled. If cert-manager is used then this default value doesn't need to change. |
+| serverSettings.env.GATEWAY_SERVER_PRIVATE_KEY_FILE | string | `"/etc/ssl/gateway/tls.key"` | The full path to the private key file that the gateway server uses when serving connections to gateway clients. Required when GATEWAY_SERVER_USE_TLS is enabled. If cert-manager is used then this default value doesn't need to change. |
+| serverSettings.env.GATEWAY_SERVER_USE_TLS | bool | `false` | Determines whether a gateway server requires TLS when serving connections to gateway clients. |
+| serverSettings.replicaCount | int | `1` | The number of servers to use. At least one server must be defined. |
+| service.annotations | object | `{"external-dns.alpha.kubernetes.io/hostname":"iag5.example.com","external-dns.alpha.kubernetes.io/ttl":"60","service.beta.kubernetes.io/aws-load-balancer-backend-protocol":"tcp","service.beta.kubernetes.io/aws-load-balancer-internal":"false","service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}` | Annotations on the service object, passed through as is |
+| service.name | string | `"iag5-service"` | The name of this Kubernetes service object |
+| service.type | string | `"LoadBalancer"` | The service type |
+| tolerations | list | `[]` | Additonal tolerations |
+| volumeMounts | list | `[]` | Additional volumeMounts on the output Deployment definition. |
+| volumes | list | `[]` | Additional volumes on the output Deployment definition. |

@@ -79,6 +79,43 @@ tests:
             secret:
               secretName: etcd-tls-secret
 
+  - it: should render the expected environment variable runner replicas are defined
+    set:
+      serverSettings.replicaCount: 1
+      runnerSettings.replicaCount: 3
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "GATEWAY_SERVER_DISTRIBUTED_EXECUTION")].value
+          value: "true"
+
+  - it: should not render the environment variable when runner replicas are not zero
+    set:
+      serverSettings.replicaCount: 1
+      runnerSettings.replicaCount: 0
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_DISTRIBUTED_EXECUTION
+
+  - it: should not render the environment variable when runner replicas are not defined
+    set:
+      serverSettings.replicaCount: 1
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_DISTRIBUTED_EXECUTION
+
+  - it: should render the expected environment variable when there is no GATEWAY_SERVER_LISTEN_ADDRESS defined
+    set:
+      runnerSettings.replicaCount: 1
+      runnerSettings.env.GATEWAY_SERVER_USE_TLS: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "GATEWAY_SERVER_LISTEN_ADDRESS")].valueFrom.fieldRef.fieldPath
+          value: "status.podIP"
+
   - it: should have the correct component label
     set:
       serverSettings.replicaCount: 1

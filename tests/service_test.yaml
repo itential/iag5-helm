@@ -8,8 +8,6 @@ tests:
       service:
         name: test-service
         type: ClusterIP
-        port: 8080
-        targetPort: 8080
         annotations: {}
       # Dummy values to satisfy `include "iag5.labels"` and `iag5.selectorLabels`
       labels:
@@ -27,10 +25,10 @@ tests:
           value: ClusterIP
       - equal:
           path: spec.ports[0].port
-          value: 8080
+          value: 50051
       - equal:
           path: spec.ports[0].targetPort
-          value: 8080
+          value: 50051
       - equal:
           path: spec.ports[0].protocol
           value: TCP
