@@ -1,46 +1,543 @@
-suite: Test Certificate Template
+suite: Test certificate.yaml template
 templates:
-  - templates/certificate.yaml
-
+  - certificate.yaml
+values: []
 tests:
-  - it: should not render certificate when disabled
+
+  - it: should not render when certificate.enabled is false
     set:
-      certificate.enabled: false
+      certificate:
+        enabled: false
     asserts:
       - hasDocuments:
           count: 0
 
-  - it: should render a Certificate resource when enabled
+  - it: should not render when certificate.enabled is null
     set:
-      certificate.enabled: true
-      certificate.duration: 2160h
-      certificate.renewBefore: 360h
-      certificate.issuerRef.name: letsencrypt-prod
-      certificate.issuerRef.kind: ClusterIssuer
+      certificate:
+        enabled: null
     asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render certificate when enabled
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+      hostname: example.com
+    asserts:
+      - hasDocuments:
+          count: 1
       - isKind:
           of: Certificate
+      - isAPIVersion:
+          of: cert-manager.io/v1
+
+  - it: should set correct metadata
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+      hostname: example.com
+    asserts:
       - equal:
           path: metadata.name
           value: RELEASE-NAME-iag5-tls
+      - exists:
+          path: metadata.labels
+
+  - it: should include annotations when provided
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+        annotations:
+          annotation1: value1
+          annotation2: value2
+      hostname: example.com
+    asserts:
+      - equal:
+          path: metadata.annotations.annotation1
+          value: value1
+      - equal:
+          path: metadata.annotations.annotation2
+          value: value2
+
+  - it: should not include annotations when not provided
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+      hostname: example.com
+    asserts:
+      - notExists:
+          path: metadata.annotations
+
+  - it: should set correct secret name
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+      hostname: example.com
+    asserts:
       - equal:
           path: spec.secretName
           value: RELEASE-NAME-iag5-tls-secret
+
+  - it: should set issuer reference without group
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+      hostname: example.com
+    asserts:
+      - equal:
+          path: spec.issuerRef.name
+          value: my-issuer
+      - equal:
+          path: spec.issuerRef.kind
+          value: Issuer
+      - notExists:
+          path: spec.issuerRef.group
+
+  - it: should set issuer reference with group when provided
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: ClusterIssuer
+        issuer:
+          group: cert-manager.io
+        renewBefore: 720h
+        duration: 2160h
+      hostname: example.com
+    asserts:
+      - equal:
+          path: spec.issuerRef.name
+          value: my-issuer
+      - equal:
+          path: spec.issuerRef.kind
+          value: ClusterIssuer
+      - equal:
+          path: spec.issuerRef.group
+          value: cert-manager.io
+
+  - it: should set renewal and duration settings
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 360h
+        duration: 8760h
+      hostname: example.com
+    asserts:
+      - equal:
+          path: spec.renewBefore
+          value: 360h
+      - equal:
+          path: spec.duration
+          value: 8760h
+
+  - it: should set common name from hostname
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+      hostname: test.example.com
+    asserts:
+      - equal:
+          path: spec.commonName
+          value: test.example.com
+
+  - it: should include DNS names when provided
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+        dnsNames:
+          - example.com
+          - www.example.com
+          - api.example.com
+      hostname: example.com
+    asserts:
+      - equal:
+          path: spec.dnsNames[0]
+          value: example.com
+      - equal:
+          path: spec.dnsNames[1]
+          value: www.example.com
+      - equal:
+          path: spec.dnsNames[2]
+          value: api.example.com
+
+  - it: should not include DNS names when not provided
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+        dnsNames: []
+      hostname: example.com
+    asserts:
+      - hasDocuments:
+          count: 1
+      - notExists:
+          path: spec.dnsNames
+
+  - it: should include IP addresses when provided
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+        ipAddresses:
+          - "192.168.1.100"
+          - "10.0.0.50"
+      hostname: example.com
+    asserts:
+      - equal:
+          path: spec.ipAddresses[0]
+          value: "192.168.1.100"
+      - equal:
+          path: spec.ipAddresses[1]
+          value: "10.0.0.50"
+
+  - it: should include service IPs when includeServiceIPs is true
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+        includeServiceIPs: true
+        services:
+          - clusterIP: "10.96.0.100"
+            loadBalancerIP: "203.0.113.10"
+          - clusterIP: "10.96.0.101"
+      hostname: example.com
+    asserts:
+      - equal:
+          path: spec.ipAddresses[0]
+          value: "10.96.0.100"
+      - equal:
+          path: spec.ipAddresses[1]
+          value: "203.0.113.10"
+      - equal:
+          path: spec.ipAddresses[2]
+          value: "10.96.0.101"
+
+  - it: should combine manual IP addresses and service IPs
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+        ipAddresses:
+          - "192.168.1.100"
+        includeServiceIPs: true
+        services:
+          - clusterIP: "10.96.0.100"
+      hostname: example.com
+    asserts:
+      - equal:
+          path: spec.ipAddresses[0]
+          value: "192.168.1.100"
+      - equal:
+          path: spec.ipAddresses[1]
+          value: "10.96.0.100"
+
+  - it: should not include IP addresses when none provided
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+        includeServiceIPs: false
+      hostname: example.com
+    asserts:
+      - notExists:
+          path: spec.ipAddresses
+
+  # - it: should handle services without IPs when includeServiceIPs is true
+  #   set:
+  #     certificate:
+  #       enabled: true
+  #       issuerRef:
+  #         name: my-issuer
+  #         kind: Issuer
+  #       renewBefore: 720h
+  #       duration: 2160h
+  #       includeServiceIPs: true
+  #       services:
+  #         - name: service-without-ips
+  #     hostname: example.com
+  #   asserts:
+  #     - notExists:
+  #         path: spec.ipAddresses
+
+  - it: should include private key settings when provided
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+        privateKey:
+          algorithm: RSA
+          size: 2048
+          rotationPolicy: Always
+      hostname: example.com
+    asserts:
+      - equal:
+          path: spec.privateKey.algorithm
+          value: RSA
+      - equal:
+          path: spec.privateKey.size
+          value: 2048
+      - equal:
+          path: spec.privateKey.rotationPolicy
+          value: Always
+
+  - it: should not include private key settings when not provided
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+      hostname: example.com
+    asserts:
+      - notExists:
+          path: spec.privateKey
+
+  - it: should include keystores when provided
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+        keystores:
+          jks:
+            create: true
+            passwordSecretRef:
+              name: jks-password-secret
+              key: password
+          pkcs12:
+            create: true
+            passwordSecretRef:
+              name: pkcs12-password-secret
+              key: password
+      hostname: example.com
+    asserts:
+      - equal:
+          path: spec.keystores.jks.create
+          value: true
+      - equal:
+          path: spec.keystores.jks.passwordSecretRef.name
+          value: jks-password-secret
+      - equal:
+          path: spec.keystores.pkcs12.create
+          value: true
+
+  - it: should not include keystores when not provided
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+      hostname: example.com
+    asserts:
+      - notExists:
+          path: spec.keystores
+
+  - it: should include subject when provided
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+        subject:
+          organizations:
+            - "My Organization"
+          countries:
+            - "US"
+          organizationalUnits:
+            - "IT Department"
+          localities:
+            - "San Francisco"
+          provinces:
+            - "CA"
+      hostname: example.com
+    asserts:
+      - equal:
+          path: spec.subject.organizations[0]
+          value: "My Organization"
+      - equal:
+          path: spec.subject.countries[0]
+          value: "US"
+      - equal:
+          path: spec.subject.organizationalUnits[0]
+          value: "IT Department"
+      - equal:
+          path: spec.subject.localities[0]
+          value: "San Francisco"
+      - equal:
+          path: spec.subject.provinces[0]
+          value: "CA"
+
+  - it: should not include subject when not provided
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-issuer
+          kind: Issuer
+        renewBefore: 720h
+        duration: 2160h
+        subject: null
+      hostname: example.com
+    asserts:
+      - notExists:
+          path: spec.subject
+
+  - it: should work with ClusterIssuer
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: letsencrypt-prod
+          kind: ClusterIssuer
+        renewBefore: 720h
+        duration: 2160h
+      hostname: example.com
+    asserts:
       - equal:
           path: spec.issuerRef.name
           value: letsencrypt-prod
       - equal:
           path: spec.issuerRef.kind
           value: ClusterIssuer
+
+  - it: should handle complex configuration
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: my-ca-issuer
+          kind: Issuer
+        issuer:
+          group: cert-manager.io
+        renewBefore: 360h
+        duration: 8760h
+        annotations:
+          cert-manager.io/revision-history-limit: "3"
+        dnsNames:
+          - example.com
+          - "*.example.com"
+        ipAddresses:
+          - "192.168.1.100"
+        includeServiceIPs: true
+        services:
+          - clusterIP: "10.96.0.100"
+            loadBalancerIP: "203.0.113.10"
+        privateKey:
+          algorithm: ECDSA
+          size: 256
+        subject:
+          organizations:
+            - "Example Corp"
+          countries:
+            - "US"
+      hostname: api.example.com
+    asserts:
       - equal:
           path: spec.commonName
-          value: iag5.example.com
+          value: api.example.com
+      - equal:
+          path: spec.issuerRef.group
+          value: cert-manager.io
       - equal:
           path: spec.dnsNames[0]
-          value: iag5.example.com
+          value: example.com
       - equal:
-          path: spec.renewBefore
-          value: 360h
+          path: spec.dnsNames[1]
+          value: "*.example.com"
       - equal:
-          path: spec.duration
-          value: 2160h
+          path: spec.ipAddresses[0]
+          value: "192.168.1.100"
+      - equal:
+          path: spec.ipAddresses[1]
+          value: "10.96.0.100"
+      - equal:
+          path: spec.ipAddresses[2]
+          value: "203.0.113.10"
+      - equal:
+          path: spec.privateKey.algorithm
+          value: ECDSA
+      - equal:
+          path: spec.subject.organizations[0]
+          value: "Example Corp"
+

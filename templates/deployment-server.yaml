@@ -95,7 +95,16 @@ spec:
           volumeMounts:
           {{- if .Values.serverSettings.env.GATEWAY_SERVER_USE_TLS }}
             - name: gateway-cert-volume
-              mountPath: /etc/ssl/gateway
+              mountPath: /etc/ssl/gateway/tls.crt
+              subPath: tls.crt
+              readOnly: true
+            - name: gateway-cert-volume
+              mountPath: /etc/ssl/gateway/tls.key
+              subPath: tls.key
+              readOnly: true
+            - name: gateway-cert-volume
+              mountPath: /etc/ssl/gateway/ca.crt
+              subPath: ca.crt
               readOnly: true
           {{- end -}}
           {{- if .Values.applicationSettings.env.GATEWAY_STORE_ETCD_USE_TLS }}

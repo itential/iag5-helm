@@ -1,4 +1,4 @@
-suite: Validate service configuration
+suite: Test service.yaml template
 templates:
   - templates/service.yaml
 

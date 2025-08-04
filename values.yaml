@@ -108,6 +108,31 @@ certificate:
   renewBefore: 48h
   # -- Specifies how long the certificate should be valid for (its lifetime).
   duration: 2160h
+  # -- The list of static IPs to include in the certificate, if any.
+  ipAddress: []
+  # -- Include the list of service IP addresses.
+  includeServiceIPs: true
+  # -- The list of static DNS names to include in the certificate.
+  dnsNames:
+    - iag5.example.com
+  # -- Specifies any private key properties
+  privateKey: {} # include all required properties, passed to the template as is
+  # -- Specifies any key store properties
+  keyStores: {} # include all required properties, passed to the template as is
+  # -- Specifies any subject fields required
+  subject:  # include all required properties, passed to the template as is
+    organizations:
+      - "Itential"
+    countries:
+      - "US"
+    localities:
+      - "Atlanta"
+    provinces:
+      - "Georgia"
+    streetAddresses:
+      - "1350 Spring St NW"
+    postalCodes:
+      - "30309"
 
 resources: {}
 
@@ -178,7 +203,33 @@ serverSettings:
     GATEWAY_SERVER_PRIVATE_KEY_FILE: "/etc/ssl/gateway/tls.key"
     # -- Determines whether a gateway server requires TLS when serving connections to gateway
     # clients.
-    GATEWAY_SERVER_USE_TLS: false
+    GATEWAY_SERVER_USE_TLS: true
+    # -- Enables or disables the connection to Gateway Manager.
+    GATEWAY_CONNECT_ENABLED: true
+    # -- Specifies the full path to the certificate file used to establish a secure connection to
+    # Gateway Manager.
+    GATEWAY_CONNECT_CERTIFICATE_FILE: "/etc/ssl/gateway/tls.crt"
+    # -- Configures the hostname and port used to connect to Gateway Manager.
+    GATEWAY_CONNECT_HOSTS: "iag5.example.com:8080"
+    # -- Determines whether the gateway verifies TLS certificates when it connects to Itential
+    # Platform. When set to true, the gateway skips TLS certificate verification. We strongly
+    # recommend enabling TLS certificate verification in production environments.
+    GATEWAY_CONNECT_INSECURE_TLS: true
+    # -- Specifies the full path to the private key file that the gateway uses to connect to
+    # Gateway Manager.
+    GATEWAY_CONNECT_PRIVATE_KEY_FILE: "/etc/ssl/gateway/tls.key"
+    # -- Enable this configuration variable when you have multiple all in one or core nodes for a
+    # particular GATEWAY_APPLICATION_CLUSTER_ID. When you enable High Availability (HA), the system
+    # runs in active/standby mode. One server connects to Gateway Manager while the others remain
+    # in standby mode. If the active node goes down, a standby node connects to Gateway Manager and
+    # begins serving requests.
+    GATEWAY_CONNECT_SERVER_HA_ENABLED: false
+    # -- When you set GATEWAY_CONNECT_SERVER_HA_ENABLED to true, use this configuration variable to
+    # designate one node as the primary. When all nodes are online, this node takes the highest
+    # precedence and connects to Gateway Manager. Only one core HA node can connect to Gateway
+    # Manager at a time. If this node loses connection to Gateway Manager or the database, a
+    # standby node takes its place.
+    GATEWAY_CONNECT_SERVER_HA_IS_PRIMARY: false
 
 # Application settings apply to all pods. This is a sampling of what is available.
 # For a complete list of configuration options please consult the documentation:
@@ -196,7 +247,6 @@ applicationSettings:
     # -- Sets the verbosity of the logs that the gateway displays to the console and file logs.
     # Possible values are: TRACE, DEBUG, INFO, WARN, ERROR, FATAL, DISABLED.
     GATEWAY_LOG_LEVEL: INFO
-    GATEWAY_COMMANDER_ENABLED: false
     # -- Sets the backend type for persistent data storage. Itential Automation Gateway (IAG) uses
     # stores as key-value databases to persistently save objects. IAG supports three types of store
     # backends: "local", "memory", "etcd", "dynamodb"

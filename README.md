@@ -181,6 +181,14 @@ Kubernetes environment by doing the following:
 helm install iag5 . -f values.yaml
 ```
 
+### Run the unit tests
+
+This project uses the helm unittest plugin.
+
+```bash
+helm unittest .
+```
+
 #### Values
 
 These values are intended to be refined when this chart is implemented. Many of these values are
