@@ -1,4 +1,4 @@
-{{- if .Values.certificate.enabled -}}
+{{- if and .Values.certificate .Values.certificate.enabled  -}}
 # Copyright (c) 2025, Itential, Inc
 # GNU General Public License v3.0+ (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.txt)
 # Source: iag5/templates/certificate.yaml
@@ -16,17 +16,19 @@ metadata:
 spec:
   secretName: {{ include "iag5.fullname" . }}-tls-secret
   issuerRef:
-    name: {{ .Values.certificate.issuerRef.name }}
-    kind: {{ .Values.certificate.issuerRef.kind }}
-    {{- if hasKey (.Values.certificate.issuer) "group" }}
+    name: {{ .Values.certificate.issuerRef.name | default "" }}
+    kind: {{ .Values.certificate.issuerRef.kind | default "Issuer" }}
+    {{- if and .Values.certificate.issuer (hasKey .Values.certificate.issuer "group") }}
     group: {{ .Values.certificate.issuer.group }}
     {{- end }}
-  renewBefore: {{ .Values.certificate.renewBefore }}
-  duration: {{ .Values.certificate.duration }}
-  commonName: {{ .Values.hostname }}
+  renewBefore: {{ .Values.certificate.renewBefore | default "720h" }}
+  duration: {{ .Values.certificate.duration | default "2160h" }}
+  commonName: {{ .Values.hostname | default "" }}
+  {{- if .Values.certificate.dnsNames }}
   {{- with .Values.certificate.dnsNames }}
   dnsNames:
     {{- toYaml . | nindent 4 }}
+  {{- end }}
   {{- end }}
   {{- if or .Values.certificate.ipAddresses .Values.certificate.includeServiceIPs }}
   ipAddresses:

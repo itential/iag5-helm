@@ -1,4 +1,4 @@
-suite: Test Issuer Template
+suite: Test issuer.yaml Template
 templates:
   - templates/issuer.yaml
 
