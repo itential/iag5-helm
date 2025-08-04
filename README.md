@@ -195,9 +195,10 @@ These values are intended to be refined when this chart is implemented. Many of 
 simply values that were used during development and testing.
 
 | Key | Type | Default | Description |
-|:----|:-----|:--------|:------------|
+|-----|------|---------|-------------|
 | affinity | object | `{}` | Additional affinities |
 | applicationSettings.env.GATEWAY_APPLICATION_CA_CERTIFICATE_FILE | string | `"/etc/ssl/gateway/ca.crt"` | When using certificates with TLS, this variable allows you to set the application CA. This is set on the application level since the CA should be used for all runner, server, and client implementations. |
+| applicationSettings.env.GATEWAY_APPLICATION_CLUSTER_ID | string | `"cluster_1"` | The ID that uniquely identifies your gateway instance or a cluster of related gateway instances. This is also used to link a gateway controller node to Gateway Manager so that automations can be sent to a particular cluster. |
 | applicationSettings.env.GATEWAY_LOG_LEVEL | string | `"INFO"` | Sets the verbosity of the logs that the gateway displays to the console and file logs. Possible values are: TRACE, DEBUG, INFO, WARN, ERROR, FATAL, DISABLED. |
 | applicationSettings.env.GATEWAY_STORE_BACKEND | string | `"memory"` | Sets the backend type for persistent data storage. Itential Automation Gateway (IAG) uses stores as key-value databases to persistently save objects. IAG supports three types of store backends: "local", "memory", "etcd", "dynamodb" |
 | applicationSettings.env.GATEWAY_STORE_ETCD_CA_CERTIFICATE_FILE | string | `"/etc/ssl/etcd/ca.crt"` | The certificate authority certificate file that the gateway uses when it connects to the etcd store backend. |
@@ -208,11 +209,17 @@ simply values that were used during development and testing.
 | applicationSettings.env.GATEWAY_STORE_ETCD_USE_TLS | bool | `false` | Determines whether the gateway uses TLS authentication when it connects to the etcd store backend. |
 | applicationSettings.etcdTlsSecretName | string | `"etcd-tls-secret"` | The name of the etcd TLS secret. This is mounted as a volume by the deployment and contains the Etcd TLS certs and keys. |
 | certManager.enabled | bool | `true` | Toggles the use of cert-manager for managing the TLS certificates. Setting this to false means that creation of the TLS certificates will be manual and outside of the chart. |
+| certificate.dnsNames | list | `["iag5.example.com"]` | The list of static DNS names to include in the certificate. |
 | certificate.duration | string | `"2160h"` | Specifies how long the certificate should be valid for (its lifetime). |
 | certificate.enabled | bool | `true` | Toggle to use the certificate object or not |
+| certificate.includeServiceIPs | bool | `true` | Include the list of service IP addresses. |
+| certificate.ipAddress | list | `[]` | The list of static IPs to include in the certificate, if any. |
 | certificate.issuerRef.kind | string | `"Issuer"` | The issuer type |
 | certificate.issuerRef.name | string | `"iag5-ca-issuer"` | The name of the issuer with the CA reference. |
+| certificate.keyStores | object | `{}` | Specifies any key store properties |
+| certificate.privateKey | object | `{}` | Specifies any private key properties |
 | certificate.renewBefore | string | `"48h"` | Specifies how long before the certificate expires that cert-manager should try to renew. |
+| certificate.subject | object |  | Specifies any subject fields required |
 | external-dns.enabled | bool | `false` | Optional dependency to generate a static external DNS name |
 | hostname | string | `"iag5.example.com"` | The intended hostname to use |
 | image.pullPolicy | string | `"IfNotPresent"` | The image pull policy |
@@ -232,11 +239,18 @@ simply values that were used during development and testing.
 | runnerSettings.env.GATEWAY_RUNNER_USE_TLS | bool | `false` | Determines whether or not a gateway runner requires TLS when connecting to a gateway server. |
 | runnerSettings.replicaCount | int | `0` | The number of runners to use. Set to zero to disable distributed runners. |
 | securityContext | object | `{}` | Additional security context |
+| serverSettings.env.GATEWAY_CONNECT_CERTIFICATE_FILE | string | `"/etc/ssl/gateway/tls.crt"` | Specifies the full path to the certificate file used to establish a secure connection to Gateway Manager. |
+| serverSettings.env.GATEWAY_CONNECT_ENABLED | bool | `true` | Enables or disables the connection to Gateway Manager. |
+| serverSettings.env.GATEWAY_CONNECT_HOSTS | string | `"iag5.example.com:8080"` | Configures the hostname and port used to connect to Gateway Manager. |
+| serverSettings.env.GATEWAY_CONNECT_INSECURE_TLS | bool | `true` | Determines whether the gateway verifies TLS certificates when it connects to Itential Platform. When set to true, the gateway skips TLS certificate verification. We strongly recommend enabling TLS certificate verification in production environments. |
+| serverSettings.env.GATEWAY_CONNECT_PRIVATE_KEY_FILE | string | `"/etc/ssl/gateway/tls.key"` | Specifies the full path to the private key file that the gateway uses to connect to Gateway Manager. |
+| serverSettings.env.GATEWAY_CONNECT_SERVER_HA_ENABLED | bool | `false` | Enable this configuration variable when you have multiple all in one or core nodes for a particular GATEWAY_APPLICATION_CLUSTER_ID. When you enable High Availability (HA), the system runs in active/standby mode. One server connects to Gateway Manager while the others remain in standby mode. If the active node goes down, a standby node connects to Gateway Manager and begins serving requests. |
+| serverSettings.env.GATEWAY_CONNECT_SERVER_HA_IS_PRIMARY | bool | `false` | When you set GATEWAY_CONNECT_SERVER_HA_ENABLED to true, use this configuration variable to designate one node as the primary. When all nodes are online, this node takes the highest precedence and connects to Gateway Manager. Only one core HA node can connect to Gateway Manager at a time. If this node loses connection to Gateway Manager or the database, a standby node takes its place. |
 | serverSettings.env.GATEWAY_SERVER_CERTIFICATE_FILE | string | `"/etc/ssl/gateway/tls.crt"` | The full path to the certificate file the gateway server uses when it serves connections to gateway clients. This setting is required when GATEWAY_SERVER_USE_TLS is enabled. If cert-manager is used then this default value doesn't need to change. |
 | serverSettings.env.GATEWAY_SERVER_PRIVATE_KEY_FILE | string | `"/etc/ssl/gateway/tls.key"` | The full path to the private key file that the gateway server uses when serving connections to gateway clients. Required when GATEWAY_SERVER_USE_TLS is enabled. If cert-manager is used then this default value doesn't need to change. |
-| serverSettings.env.GATEWAY_SERVER_USE_TLS | bool | `false` | Determines whether a gateway server requires TLS when serving connections to gateway clients. |
+| serverSettings.env.GATEWAY_SERVER_USE_TLS | bool | `true` | Determines whether a gateway server requires TLS when serving connections to gateway clients. |
 | serverSettings.replicaCount | int | `1` | The number of servers to use. At least one server must be defined. |
-| service.annotations | object | `{"external-dns.alpha.kubernetes.io/hostname":"iag5.example.com","external-dns.alpha.kubernetes.io/ttl":"60","service.beta.kubernetes.io/aws-load-balancer-backend-protocol":"tcp","service.beta.kubernetes.io/aws-load-balancer-internal":"false","service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}` | Annotations on the service object, passed through as is |
+| service.annotations | object |  | Annotations on the service object, passed through as is |
 | service.name | string | `"iag5-service"` | The name of this Kubernetes service object |
 | service.type | string | `"LoadBalancer"` | The service type |
 | tolerations | list | `[]` | Additonal tolerations |

@@ -240,6 +240,10 @@ applicationSettings:
   etcdTlsSecretName: etcd-tls-secret
   # Environment variables passed to all of the deployment pods
   env:
+    # -- The ID that uniquely identifies your gateway instance or a cluster of related gateway
+    # instances. This is also used to link a gateway controller node to Gateway Manager so that
+    # automations can be sent to a particular cluster.
+    GATEWAY_APPLICATION_CLUSTER_ID: cluster_1
     # -- When using certificates with TLS, this variable allows you to set the application CA. This
     # is set on the application level since the CA should be used for all runner, server, and client
     # implementations.
