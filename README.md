@@ -102,8 +102,9 @@ server architecture. That client could be a local installation of IAG5 or an Ite
 server. It requires an Etcd cluster that it uses for communication. It consists of many pods. It
 can support TLS connections.
 
-The creation of the Etcd cluster is outside of the scope of this chart. Itential routinely uses the
-helm chart provided by [bitnami](https://artifacthub.io/packages/helm/bitnami/etcd).
+The chart will create the Etcd cluster when the `etcd.enabled` value is set to true. Itential
+routinely uses the helm chart provided by [bitnami](https://artifacthub.io/packages/helm/bitnami/etcd).
+This chart is listed as a dependency.
 
 To create this environment the values file must provide the appropriate values for `serverSettings` and
 `runnerSettings`. When the replicaCount is greater than zero in the `serverSettings` config
