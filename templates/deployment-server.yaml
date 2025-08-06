@@ -10,7 +10,7 @@ metadata:
   labels:
     {{- include "iag5.labels" . | nindent 4 }}
 spec:
-  replicas: {{.Values.serverSettings.replicaCount }}
+  replicas: {{ .Values.serverSettings.replicaCount }}
   selector:
     matchLabels:
       {{- include "iag5.selectorLabels" . | nindent 6 }}

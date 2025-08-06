@@ -1,48 +1,78 @@
-suite: Test deployment-runner.yaml template
+# tests/deployment-runner_test.yaml
+suite: test runner deployment
 templates:
   - deployment-runner.yaml
 tests:
-  - it: should not render when runnerSettings.replicaCount is not set
-    set:
-      runnerSettings: {}
-    asserts:
-      - hasDocuments:
-          count: 0
-
-  - it: should render deployment when runnerSettings.replicaCount is set
+  - it: should create the correct number of runner deployments
     set:
       runnerSettings:
-        replicaCount: 2
+        replicaCount: 3
+      service:
+        name: "test-service"
     asserts:
       - hasDocuments:
-          count: 1
+          count: 3
       - isKind:
           of: Deployment
       - equal:
           path: metadata.name
-          value: RELEASE-NAME-iag5-runner
+          value: RELEASE-NAME-iag5-runner-0
+        documentIndex: 0
       - equal:
-          path: spec.replicas
-          value: 2
+          path: metadata.name
+          value: RELEASE-NAME-iag5-runner-1
+        documentIndex: 1
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-iag5-runner-2
+        documentIndex: 2
 
-  - it: should include correct labels
+  - it: should set correct labels on deployments
     set:
       runnerSettings:
         replicaCount: 1
     asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: iag5
+      - equal:
+          path: metadata.labels["app.kubernetes.io/instance"]
+          value: RELEASE-NAME
       - equal:
           path: spec.template.metadata.labels["app.kubernetes.io/component"]
           value: runner
-      - exists:
-          path: metadata.labels
-      - exists:
-          path: spec.template.metadata.labels
 
-  - it: should set correct container command for runner mode
+  - it: should set correct selector labels
     set:
       runnerSettings:
         replicaCount: 1
     asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/name"]
+          value: iag5
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/instance"]
+          value: RELEASE-NAME
+
+  - it: should configure container correctly
+    set:
+      runnerSettings:
+        replicaCount: 1
+      image:
+        repository: "test-repo"
+        tag: "v1.0.0"
+        pullPolicy: "Always"
+      port: 8080
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: iag5
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "test-repo:v1.0.0"
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "Always"
       - equal:
           path: spec.template.spec.containers[0].command[0]
           value: "/usr/local/bin/iagctl"
@@ -50,16 +80,46 @@ tests:
           path: spec.template.spec.containers[0].command[1]
           value: "runner"
 
-  - it: should set GATEWAY_APPLICATION_MODE to runner
+  - it: should set correct environment variables
     set:
       runnerSettings:
-        replicaCount: 1
+        replicaCount: 2
+        env:
+          CUSTOM_RUNNER_VAR: "runner-value"
+      applicationSettings:
+        env:
+          CUSTOM_APP_VAR: "app-value"
+      service:
+        name: "my-service"
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
             name: GATEWAY_APPLICATION_MODE
             value: "runner"
+        documentIndex: 0
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
+            value: "my-service-runner-0.NAMESPACE.svc.cluster.local"
+        documentIndex: 0
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
+            value: "my-service-runner-1.NAMESPACE.svc.cluster.local"
+        documentIndex: 1
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CUSTOM_RUNNER_VAR
+            value: "runner-value"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CUSTOM_APP_VAR
+            value: "app-value"
 
   - it: should set GATEWAY_RUNNER_LISTEN_ADDRESS from podIP when not provided
     set:
@@ -75,18 +135,18 @@ tests:
               fieldRef:
                 fieldPath: status.podIP
 
-  - it: should not set GATEWAY_RUNNER_LISTEN_ADDRESS from podIP when provided in env
+  - it: should not override GATEWAY_RUNNER_LISTEN_ADDRESS when provided
     set:
       runnerSettings:
         replicaCount: 1
         env:
-          GATEWAY_RUNNER_LISTEN_ADDRESS: "0.0.0.0:8080"
+          GATEWAY_RUNNER_LISTEN_ADDRESS: "custom-address"
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
             name: GATEWAY_RUNNER_LISTEN_ADDRESS
-            value: "0.0.0.0:8080"
+            value: "custom-address"
       - notContains:
           path: spec.template.spec.containers[0].env
           content:
@@ -95,44 +155,21 @@ tests:
               fieldRef:
                 fieldPath: status.podIP
 
-  - it: should include runner environment variables
+  - it: should configure ports correctly
     set:
       runnerSettings:
         replicaCount: 1
-        env:
-          RUNNER_VAR1: "value1"
-          RUNNER_VAR2: "value2"
+      port: 9443
     asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: RUNNER_VAR1
-            value: "value1"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: RUNNER_VAR2
-            value: "value2"
-
-  - it: should include application environment variables
-    set:
-      runnerSettings:
-        replicaCount: 1
-      applicationSettings:
-        env:
-          APP_VAR1: "appvalue1"
-          APP_VAR2: "appvalue2"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: APP_VAR1
-            value: "appvalue1"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: APP_VAR2
-            value: "appvalue2"
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: RELEASE-NAME-iag5-runner
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 9443
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].protocol
+          value: TCP
 
   - it: should include etcd init container when etcd is enabled
     set:
@@ -141,8 +178,6 @@ tests:
       etcd:
         enabled: true
     asserts:
-      - exists:
-          path: spec.template.spec.initContainers
       - equal:
           path: spec.template.spec.initContainers[0].name
           value: wait-for-etcd-cluster
@@ -157,16 +192,22 @@ tests:
       etcd:
         enabled: false
     asserts:
-      - notExists:
+      - isNull:
           path: spec.template.spec.initContainers
 
-  - it: should include TLS volume mounts when GATEWAY_RUNNER_USE_TLS is true
+  - it: should configure TLS volumes and mounts when TLS is enabled
     set:
       runnerSettings:
         replicaCount: 1
         env:
           GATEWAY_RUNNER_USE_TLS: "true"
     asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: gateway-cert-volume
+            secret:
+              secretName: RELEASE-NAME-iag5-tls-secret
       - contains:
           path: spec.template.spec.containers[0].volumeMounts
           content:
@@ -189,29 +230,33 @@ tests:
             subPath: ca.crt
             readOnly: true
 
-  - it: should include TLS volume when GATEWAY_RUNNER_USE_TLS is true
+  - it: should not configure TLS volumes when TLS is disabled
     set:
       runnerSettings:
         replicaCount: 1
         env:
-          GATEWAY_RUNNER_USE_TLS: "true"
+          GATEWAY_RUNNER_USE_TLS: "false"
     asserts:
-      - contains:
+      - notContains:
           path: spec.template.spec.volumes
           content:
             name: gateway-cert-volume
-            secret:
-              secretName: RELEASE-NAME-iag5-tls-secret
 
-  - it: should include etcd TLS volume mount when GATEWAY_STORE_ETCD_USE_TLS is true
+  - it: should configure etcd TLS volumes when enabled
     set:
       runnerSettings:
         replicaCount: 1
       applicationSettings:
         env:
           GATEWAY_STORE_ETCD_USE_TLS: "true"
-        etcdTlsSecretName: "my-etcd-secret"
+        etcdTlsSecretName: "etcd-tls-secret"
     asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: etcd-cert-volume
+            secret:
+              secretName: etcd-tls-secret
       - contains:
           path: spec.template.spec.containers[0].volumeMounts
           content:
@@ -219,90 +264,7 @@ tests:
             mountPath: /etc/ssl/etcd
             readOnly: true
 
-  - it: should include etcd TLS volume when GATEWAY_STORE_ETCD_USE_TLS is true
-    set:
-      runnerSettings:
-        replicaCount: 1
-      applicationSettings:
-        env:
-          GATEWAY_STORE_ETCD_USE_TLS: "true"
-        etcdTlsSecretName: "my-etcd-secret"
-    asserts:
-      - contains:
-          path: spec.template.spec.volumes
-          content:
-            name: etcd-cert-volume
-            secret:
-              secretName: "my-etcd-secret"
-
-  - it: should not include TLS volumes when TLS is disabled
-    set:
-      runnerSettings:
-        replicaCount: 1
-        env:
-          GATEWAY_RUNNER_USE_TLS: "false"
-      applicationSettings:
-        env:
-          GATEWAY_STORE_ETCD_USE_TLS: "false"
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: gateway-cert-volume
-      - notContains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: etcd-cert-volume
-
-  - it: should include custom volume mounts
-    set:
-      runnerSettings:
-        replicaCount: 1
-      volumeMounts:
-        - name: custom-volume
-          mountPath: /custom/path
-          readOnly: true
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: custom-volume
-            mountPath: /custom/path
-            readOnly: true
-
-  - it: should include custom volumes
-    set:
-      runnerSettings:
-        replicaCount: 1
-      volumes:
-        - name: custom-volume
-          configMap:
-            name: my-config
-    asserts:
-      - contains:
-          path: spec.template.spec.volumes
-          content:
-            name: custom-volume
-            configMap:
-              name: my-config
-
-  - it: should set image from values
-    set:
-      runnerSettings:
-        replicaCount: 1
-      image:
-        repository: "my-registry/iag5"
-        tag: "v1.2.3"
-        pullPolicy: "Always"
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].image
-          value: "my-registry/iag5:v1.2.3"
-      - equal:
-          path: spec.template.spec.containers[0].imagePullPolicy
-          value: "Always"
-
-  - it: should include probes when enabled
+  - it: should configure liveness probe when enabled
     set:
       runnerSettings:
         replicaCount: 1
@@ -312,6 +274,29 @@ tests:
           httpGet:
             path: /health
             port: 8080
+          initialDelaySeconds: 30
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /health
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.initialDelaySeconds
+          value: 30
+
+  - it: should not configure liveness probe when disabled
+    set:
+      runnerSettings:
+        replicaCount: 1
+      livenessProbe:
+        enabled: false
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].livenessProbe
+
+  - it: should configure readiness probe when enabled
+    set:
+      runnerSettings:
+        replicaCount: 1
       readinessProbe:
         enabled: true
         settings:
@@ -319,72 +304,438 @@ tests:
             path: /ready
             port: 8080
     asserts:
-      - exists:
-          path: spec.template.spec.containers[0].livenessProbe
-      - exists:
-          path: spec.template.spec.containers[0].readinessProbe
-      - equal:
-          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
-          value: "/health"
       - equal:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.path
-          value: "/ready"
+          value: /ready
 
-  - it: should not include probes when disabled
-    set:
-      runnerSettings:
-        replicaCount: 1
-      livenessProbe:
-        enabled: false
-      readinessProbe:
-        enabled: false
-    asserts:
-      - notExists:
-          path: spec.template.spec.containers[0].livenessProbe
-      - notExists:
-          path: spec.template.spec.containers[0].readinessProbe
-
-  - it: should include pod annotations
+  - it: should set pod annotations when provided
     set:
       runnerSettings:
         replicaCount: 1
       podAnnotations:
-        annotation1: "value1"
-        annotation2: "value2"
+        custom-annotation: "test-value"
+        another-annotation: "another-value"
     asserts:
       - equal:
-          path: spec.template.metadata.annotations.annotation1
-          value: "value1"
+          path: spec.template.metadata.annotations["custom-annotation"]
+          value: "test-value"
       - equal:
-          path: spec.template.metadata.annotations.annotation2
-          value: "value2"
+          path: spec.template.metadata.annotations["another-annotation"]
+          value: "another-value"
 
-  - it: should include pod labels
+  - it: should set pod labels when provided
     set:
       runnerSettings:
         replicaCount: 1
       podLabels:
-        label1: "value1"
-        label2: "value2"
+        custom-label: "test-label"
     asserts:
       - equal:
-          path: spec.template.metadata.labels.label1
-          value: "value1"
-      - equal:
-          path: spec.template.metadata.labels.label2
-          value: "value2"
+          path: spec.template.metadata.labels["custom-label"]
+          value: "test-label"
 
-  - it: should include node selector
+  - it: should configure image pull secrets when provided
+    set:
+      runnerSettings:
+        replicaCount: 1
+      imagePullSecrets:
+        - name: my-registry-secret
+        - name: another-secret
+    asserts:
+      - equal:
+          path: spec.template.spec.imagePullSecrets[0].name
+          value: my-registry-secret
+      - equal:
+          path: spec.template.spec.imagePullSecrets[1].name
+          value: another-secret
+
+  - it: should configure security contexts when provided
+    set:
+      runnerSettings:
+        replicaCount: 1
+      podSecurityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 1000
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+
+  - it: should configure resources when provided
+    set:
+      runnerSettings:
+        replicaCount: 1
+      resources:
+        limits:
+          cpu: 500m
+          memory: 512Mi
+        requests:
+          cpu: 250m
+          memory: 256Mi
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: 500m
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 256Mi
+
+  - it: should configure node selector when provided
     set:
       runnerSettings:
         replicaCount: 1
       nodeSelector:
-        disktype: ssd
+        kubernetes.io/arch: amd64
         environment: production
     asserts:
       - equal:
-          path: spec.template.spec.nodeSelector.disktype
-          value: "ssd"
+          path: spec.template.spec.nodeSelector["kubernetes.io/arch"]
+          value: amd64
       - equal:
           path: spec.template.spec.nodeSelector.environment
-          value: "production"
+          value: production
+
+  - it: should configure affinity when provided
+    set:
+      runnerSettings:
+        replicaCount: 1
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+    asserts:
+      - isNotNull:
+          path: spec.template.spec.affinity.nodeAffinity
+
+  - it: should configure tolerations when provided
+    set:
+      runnerSettings:
+        replicaCount: 1
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "runners"
+          effect: "NoSchedule"
+    asserts:
+      - equal:
+          path: spec.template.spec.tolerations[0].key
+          value: "dedicated"
+      - equal:
+          path: spec.template.spec.tolerations[0].effect
+          value: "NoSchedule"
+
+  - it: should configure custom volumes and volume mounts
+    set:
+      runnerSettings:
+        replicaCount: 1
+      volumes:
+        - name: custom-volume
+          configMap:
+            name: my-config
+      volumeMounts:
+        - name: custom-volume
+          mountPath: /etc/config
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: custom-volume
+            configMap:
+              name: my-config
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: custom-volume
+            mountPath: /etc/config
+
+  - it: should handle zero replicas
+    set:
+      runnerSettings:
+        replicaCount: 0
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should work with default service name
+    set:
+      runnerSettings:
+        replicaCount: 1
+      # Don't set service.name - should use fullname template
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
+            value: "iag5-service-runner-0.NAMESPACE.svc.cluster.local"
+
+  - it: should work with all features enabled
+    set:
+      runnerSettings:
+        replicaCount: 2
+        env:
+          GATEWAY_RUNNER_USE_TLS: "true"
+          CUSTOM_RUNNER_VAR: "test"
+      applicationSettings:
+        env:
+          GATEWAY_STORE_ETCD_USE_TLS: "true"
+          CUSTOM_APP_VAR: "app-test"
+        etcdTlsSecretName: "etcd-certs"
+      etcd:
+        enabled: true
+      service:
+        name: "integration-test"
+      image:
+        repository: "test/app"
+        tag: "latest"
+      port: 9443
+      livenessProbe:
+        enabled: true
+        settings:
+          httpGet:
+            path: /health
+            port: 9443
+      readinessProbe:
+        enabled: true
+        settings:
+          httpGet:
+            path: /ready
+            port: 9443
+      resources:
+        limits:
+          cpu: "1"
+          memory: "1Gi"
+        requests:
+          cpu: "500m"
+          memory: "512Mi"
+      podAnnotations:
+        prometheus.io/scrape: "true"
+      podLabels:
+        version: "v1.0.0"
+      imagePullSecrets:
+        - name: registry-secret
+      podSecurityContext:
+        runAsNonRoot: true
+      securityContext:
+        readOnlyRootFilesystem: true
+      nodeSelector:
+        node-type: "runner"
+    asserts:
+      - hasDocuments:
+          count: 2
+      # Verify both deployments have correct names
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-iag5-runner-0
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-iag5-runner-1
+        documentIndex: 1
+      # Verify environment variables are set correctly for each instance
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
+            value: "integration-test-runner-0.NAMESPACE.svc.cluster.local"
+        documentIndex: 0
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
+            value: "integration-test-runner-1.NAMESPACE.svc.cluster.local"
+        documentIndex: 1
+      # Verify TLS volumes are present
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: gateway-cert-volume
+            secret:
+              secretName: RELEASE-NAME-iag5-tls-secret
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: etcd-cert-volume
+            secret:
+              secretName: etcd-certs
+      # Verify init container for etcd
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: wait-for-etcd-cluster
+      # Verify probes are configured
+      - isNotNull:
+          path: spec.template.spec.containers[0].livenessProbe
+      - isNotNull:
+          path: spec.template.spec.containers[0].readinessProbe
+
+  - it: should handle minimal configuration
+    set:
+      runnerSettings:
+        replicaCount: 1
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-iag5-runner-0
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: iag5
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_APPLICATION_MODE
+            value: "runner"
+
+  - it: should handle large replica count
+    set:
+      runnerSettings:
+        replicaCount: 10
+      service:
+        name: "stress-test"
+    asserts:
+      - hasDocuments:
+          count: 10
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-iag5-runner-0
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-iag5-runner-9
+        documentIndex: 9
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
+            value: "stress-test-runner-9.NAMESPACE.svc.cluster.local"
+        documentIndex: 9
+
+  - it: should handle special characters in service name
+    set:
+      runnerSettings:
+        replicaCount: 1
+      service:
+        name: "my-special-service-123"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
+            value: "my-special-service-123-runner-0.NAMESPACE.svc.cluster.local"
+
+  - it: should properly escape environment variable values
+    set:
+      runnerSettings:
+        replicaCount: 1
+        env:
+          COMPLEX_VAR: 'value with "quotes" and $pecial chars'
+          NUMERIC_VAR: 12345
+          BOOLEAN_VAR: true
+      applicationSettings:
+        env:
+          JSON_CONFIG: '{"key": "value", "nested": {"array": [1,2,3]}}'
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: COMPLEX_VAR
+            value: 'value with "quotes" and $pecial chars'
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NUMERIC_VAR
+            value: "12345"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BOOLEAN_VAR
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: JSON_CONFIG
+            value: '{"key": "value", "nested": {"array": [1,2,3]}}'
+
+  - it: should fail when replicaCount is negative
+    set:
+      runnerSettings:
+        replicaCount: -1
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should validate required image settings
+    set:
+      runnerSettings:
+        replicaCount: 1
+      image:
+        repository: ""
+        tag: ""
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ":5.1.1"
+
+  - it: should handle missing port gracefully
+    set:
+      runnerSettings:
+        replicaCount: 1
+      # Don't set port - should use default or template default
+    asserts:
+      - isNotNull:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+
+  - it: should validate TLS configuration consistency
+    set:
+      runnerSettings:
+        replicaCount: 1
+        env:
+          GATEWAY_RUNNER_USE_TLS: "true"
+      # Missing certificate configuration should still work
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: gateway-cert-volume
+            secret:
+              secretName: RELEASE-NAME-iag5-tls-secret
+
+  - it: should handle empty environment variable sections
+    set:
+      runnerSettings:
+        replicaCount: 1
+        env: {}
+      applicationSettings:
+        env: {}
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_APPLICATION_MODE
+            value: "runner"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_LISTEN_ADDRESS
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP

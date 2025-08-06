@@ -11,7 +11,7 @@ port: 50051
 # Set to false to disable etcd installation. Below is a sample Etcd configuration if using the
 # included dependency.
 etcd:
-  enabled: false
+  enabled: true
   persistence:
     enabled: true
     storageClass: ""  # Use default storage class, or specify one
@@ -182,7 +182,7 @@ runnerSettings:
     GATEWAY_RUNNER_PRIVATE_KEY_FILE: /etc/ssl/gateway/tls.key
     # -- Determines whether or not a gateway runner requires TLS when connecting to a gateway
     # server.
-    GATEWAY_RUNNER_USE_TLS: false
+    GATEWAY_RUNNER_USE_TLS: true
 
 # At least one server must be defined. This is a sampling of server variables that are available.
 # For a complete list of configuration options please consult the documentation:
@@ -214,7 +214,7 @@ serverSettings:
     # -- Determines whether the gateway verifies TLS certificates when it connects to Itential
     # Platform. When set to true, the gateway skips TLS certificate verification. We strongly
     # recommend enabling TLS certificate verification in production environments.
-    GATEWAY_CONNECT_INSECURE_TLS: true
+    GATEWAY_CONNECT_INSECURE_TLS: false
     # -- Specifies the full path to the private key file that the gateway uses to connect to
     # Gateway Manager.
     GATEWAY_CONNECT_PRIVATE_KEY_FILE: "/etc/ssl/gateway/tls.key"
@@ -254,7 +254,7 @@ applicationSettings:
     # -- Sets the backend type for persistent data storage. Itential Automation Gateway (IAG) uses
     # stores as key-value databases to persistently save objects. IAG supports three types of store
     # backends: "local", "memory", "etcd", "dynamodb"
-    GATEWAY_STORE_BACKEND: memory
+    GATEWAY_STORE_BACKEND: etcd
     # -- Sets the etcd hosts that the gateway connects to for backend storage. A host entry consists
     # of an address and port: hostname:port. If there are multiple etcd hosts, enter them as a space
     # separated list: hostname1:port hostname2:port.
