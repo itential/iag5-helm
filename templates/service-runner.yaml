@@ -1,0 +1,25 @@
+{{- range $i := until (.Values.runnerSettings.replicaCount | int) }}
+# Copyright (c) 2025, Itential, Inc
+# GNU General Public License v3.0+ (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.txt)
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Values.service.name }}-runner-{{ $i }}
+  {{- with $.Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "iag5.labels" $ | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ $.Values.port }}
+      targetPort: {{ $.Values.port }}
+      protocol: TCP
+      name: iag5-service-port
+  selector:
+    {{- include "iag5.selectorLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: runner
+{{- end }}

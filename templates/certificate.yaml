@@ -1,4 +1,8 @@
 {{- if and .Values.certificate .Values.certificate.enabled  -}}
+{{- $replicaCount := .Values.runnerSettings.replicaCount | int }}
+{{- if lt $replicaCount 0 }}
+{{- $replicaCount = 0 }}
+{{- end }}
 # Copyright (c) 2025, Itential, Inc
 # GNU General Public License v3.0+ (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.txt)
 # Source: iag5/templates/certificate.yaml
@@ -24,26 +28,57 @@ spec:
   renewBefore: {{ .Values.certificate.renewBefore | default "720h" }}
   duration: {{ .Values.certificate.duration | default "2160h" }}
   commonName: {{ .Values.hostname | default "" }}
+  {{- $dnsNames := list }}
+  {{/* Add manually configured DNS names */}}
   {{- if .Values.certificate.dnsNames }}
-  {{- with .Values.certificate.dnsNames }}
+  {{- $dnsNames = concat $dnsNames .Values.certificate.dnsNames }}
+  {{- end }}
+  {{/* Add common hostname if specified */}}
+  {{- if .Values.hostname }}
+  {{- $dnsNames = append $dnsNames .Values.hostname }}
+  {{- end }}
+  {{/* Dynamically add service DNS names */}}
+  {{- if .Values.service.enabled }}
+  {{- $serviceName := .Values.service.name | default (include "iag5.fullname" .) }}
+  {{- $namespace := .Release.Namespace }}
+  {{- $dnsNames = append $dnsNames $serviceName }}
+  {{- $dnsNames = append $dnsNames (printf "%s.%s" $serviceName $namespace) }}
+  {{- $dnsNames = append $dnsNames (printf "%s.%s.svc" $serviceName $namespace) }}
+  {{- $dnsNames = append $dnsNames (printf "%s.%s.svc.cluster.local" $serviceName $namespace) }}
+  {{- end }}
+  {{/* Add runner services if they exist */}}
+  {{- if and .Values.runnerSettings .Values.runnerSettings.replicaCount }}
+  {{- $runnerServiceName := .Values.service.name | default (include "iag5.fullname" .) }}
+  {{- $namespace := .Release.Namespace }}
+  {{- range $i := until $replicaCount }}
+  {{- $instanceServiceName := printf "%s-runner-%d" $runnerServiceName $i }}
+  {{- $dnsNames = append $dnsNames $instanceServiceName }}
+  {{- $dnsNames = append $dnsNames (printf "%s.%s" $instanceServiceName $namespace) }}
+  {{- $dnsNames = append $dnsNames (printf "%s.%s.svc" $instanceServiceName $namespace) }}
+  {{- $dnsNames = append $dnsNames (printf "%s.%s.svc.cluster.local" $instanceServiceName $namespace) }}
+  {{- end }}
+  {{- end }}
+  {{/* Add any additional services defined in values */}}
+  {{- if .Values.certificate.additionalServices }}
+  {{- range .Values.certificate.additionalServices }}
+  {{- $namespace := $.Release.Namespace }}
+  {{- $dnsNames = append $dnsNames . }}
+  {{- $dnsNames = append $dnsNames (printf "%s.%s" . $namespace) }}
+  {{- $dnsNames = append $dnsNames (printf "%s.%s.svc" . $namespace) }}
+  {{- $dnsNames = append $dnsNames (printf "%s.%s.svc.cluster.local" . $namespace) }}
+  {{- end }}
+  {{- end }}
+  {{/* Remove duplicates and output DNS names */}}
+  {{- if $dnsNames }}
   dnsNames:
-    {{- toYaml . | nindent 4 }}
+  {{- range $dnsNames | uniq | sortAlpha }}
+    - {{ . | quote }}
   {{- end }}
   {{- end }}
-  {{- if or .Values.certificate.ipAddresses .Values.certificate.includeServiceIPs }}
+  {{- if or .Values.certificate.ipAddresses }}
   ipAddresses:
   {{- range .Values.certificate.ipAddresses }}
     - {{ . | quote }}
-  {{- end }}
-  {{- if .Values.certificate.includeServiceIPs }}
-  {{- range .Values.certificate.services }}
-    {{- if .clusterIP }}
-    - {{ .clusterIP | quote }}
-    {{- end }}
-    {{- if .loadBalancerIP }}
-    - {{ .loadBalancerIP | quote }}
-    {{- end }}
-  {{- end }}
   {{- end }}
   {{- end }}
   {{- with .Values.certificate.privateKey }}

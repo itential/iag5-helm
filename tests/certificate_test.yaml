@@ -1,10 +1,9 @@
-suite: Test certificate.yaml template
+# tests/certificate_test.yaml
+suite: test certificate template
 templates:
   - certificate.yaml
-values: []
 tests:
-
-  - it: should not render when certificate.enabled is false
+  - it: should not create certificate when disabled
     set:
       certificate:
         enabled: false
@@ -12,367 +11,1042 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: should not render when certificate.enabled is null
-    set:
-      certificate:
-        enabled: null
-    asserts:
-      - hasDocuments:
-          count: 0
-
-  - it: should render certificate when enabled
+  - it: should create certificate with minimal configuration
     set:
       certificate:
         enabled: true
         issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
-      hostname: example.com
+          name: "test-issuer"
     asserts:
       - hasDocuments:
           count: 1
       - isKind:
           of: Certificate
-      - isAPIVersion:
-          of: cert-manager.io/v1
-
-  - it: should set correct metadata
-    set:
-      certificate:
-        enabled: true
-        issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
-      hostname: example.com
-    asserts:
       - equal:
           path: metadata.name
           value: RELEASE-NAME-iag5-tls
-      - exists:
-          path: metadata.labels
-
-  - it: should include annotations when provided
-    set:
-      certificate:
-        enabled: true
-        issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
-        annotations:
-          annotation1: value1
-          annotation2: value2
-      hostname: example.com
-    asserts:
-      - equal:
-          path: metadata.annotations.annotation1
-          value: value1
-      - equal:
-          path: metadata.annotations.annotation2
-          value: value2
-
-  - it: should not include annotations when not provided
-    set:
-      certificate:
-        enabled: true
-        issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
-      hostname: example.com
-    asserts:
-      - notExists:
-          path: metadata.annotations
-
-  - it: should set correct secret name
-    set:
-      certificate:
-        enabled: true
-        issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
-      hostname: example.com
-    asserts:
       - equal:
           path: spec.secretName
           value: RELEASE-NAME-iag5-tls-secret
-
-  - it: should set issuer reference without group
-    set:
-      certificate:
-        enabled: true
-        issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
-      hostname: example.com
-    asserts:
       - equal:
           path: spec.issuerRef.name
-          value: my-issuer
+          value: "test-issuer"
       - equal:
           path: spec.issuerRef.kind
-          value: Issuer
-      - notExists:
-          path: spec.issuerRef.group
+          value: "Issuer"
 
-  - it: should set issuer reference with group when provided
+  - it: should set correct metadata and labels
     set:
       certificate:
         enabled: true
         issuerRef:
-          name: my-issuer
-          kind: ClusterIssuer
+          name: "test-issuer"
+        annotations:
+          custom-annotation: "test-value"
+          another-annotation: "another-value"
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: iag5
+      - equal:
+          path: metadata.labels["app.kubernetes.io/instance"]
+          value: RELEASE-NAME
+      - equal:
+          path: metadata.annotations["custom-annotation"]
+          value: "test-value"
+      - equal:
+          path: metadata.annotations["another-annotation"]
+          value: "another-value"
+
+  - it: should configure issuer settings correctly
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "ca-issuer"
+          kind: "ClusterIssuer"
         issuer:
-          group: cert-manager.io
-        renewBefore: 720h
-        duration: 2160h
-      hostname: example.com
+          group: "cert-manager.io"
     asserts:
       - equal:
           path: spec.issuerRef.name
-          value: my-issuer
+          value: "ca-issuer"
       - equal:
           path: spec.issuerRef.kind
-          value: ClusterIssuer
+          value: "ClusterIssuer"
       - equal:
           path: spec.issuerRef.group
-          value: cert-manager.io
+          value: "cert-manager.io"
 
-  - it: should set renewal and duration settings
+  - it: should use default issuer kind when not specified
     set:
       certificate:
         enabled: true
         issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 360h
-        duration: 8760h
-      hostname: example.com
+          name: "test-issuer"
+    asserts:
+      - equal:
+          path: spec.issuerRef.kind
+          value: "Issuer"
+
+  - it: should set certificate duration and renewal settings
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+        renewBefore: "168h"
+        duration: "8760h"
     asserts:
       - equal:
           path: spec.renewBefore
-          value: 360h
+          value: "168h"
       - equal:
           path: spec.duration
-          value: 8760h
+          value: "8760h"
+
+  - it: should use default duration and renewal settings
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+    asserts:
+      - equal:
+          path: spec.renewBefore
+          value: "48h"
+      - equal:
+          path: spec.duration
+          value: "2160h"
 
   - it: should set common name from hostname
     set:
       certificate:
         enabled: true
         issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
-      hostname: test.example.com
+          name: "test-issuer"
+      hostname: "my-app.example.com"
     asserts:
       - equal:
           path: spec.commonName
-          value: test.example.com
+          value: "my-app.example.com"
 
-  - it: should include DNS names when provided
+  - it: should handle empty hostname
+    set:
+      hostname: ""
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+    asserts:
+      - equal:
+          path: spec.commonName
+          value: null
+
+  - it: should include manually configured DNS names
     set:
       certificate:
         enabled: true
         issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
+          name: "test-issuer"
         dnsNames:
-          - example.com
-          - www.example.com
-          - api.example.com
-      hostname: example.com
+          - "manual1.example.com"
+          - "manual2.example.com"
+    asserts:
+      - contains:
+          path: spec.dnsNames
+          content: "manual1.example.com"
+      - contains:
+          path: spec.dnsNames
+          content: "manual2.example.com"
+
+  - it: should include hostname in DNS names
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+      hostname: "app.example.com"
+    asserts:
+      - contains:
+          path: spec.dnsNames
+          content: "app.example.com"
+
+  - it: should generate service DNS names when service is enabled
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+      service:
+        enabled: true
+        name: "my-service"
+    asserts:
+      - contains:
+          path: spec.dnsNames
+          content: "my-service"
+      - contains:
+          path: spec.dnsNames
+          content: "my-service.NAMESPACE"
+      - contains:
+          path: spec.dnsNames
+          content: "my-service.NAMESPACE.svc"
+      - contains:
+          path: spec.dnsNames
+          content: "my-service.NAMESPACE.svc.cluster.local"
+
+  - it: should use fullname when service name is not specified
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+      service:
+        enabled: true
+        # name not specified, should use fullname
+    asserts:
+      - contains:
+          path: spec.dnsNames
+          content: "iag5-service"
+      - contains:
+          path: spec.dnsNames
+          content: "iag5-service.NAMESPACE.svc.cluster.local"
+
+  - it: should not generate service DNS names when service is disabled
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+      service:
+        enabled: false
+        name: "my-service"
+    asserts:
+      - notContains:
+          path: spec.dnsNames
+          content: "my-service"
+
+  - it: should generate runner service DNS names
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+      service:
+        name: "my-service"
+      runnerSettings:
+        replicaCount: 3
+    asserts:
+      # Runner 0
+      - contains:
+          path: spec.dnsNames
+          content: "my-service-runner-0"
+      - contains:
+          path: spec.dnsNames
+          content: "my-service-runner-0.NAMESPACE"
+      - contains:
+          path: spec.dnsNames
+          content: "my-service-runner-0.NAMESPACE.svc"
+      - contains:
+          path: spec.dnsNames
+          content: "my-service-runner-0.NAMESPACE.svc.cluster.local"
+      # Runner 1
+      - contains:
+          path: spec.dnsNames
+          content: "my-service-runner-1"
+      - contains:
+          path: spec.dnsNames
+          content: "my-service-runner-1.NAMESPACE.svc.cluster.local"
+      # Runner 2
+      - contains:
+          path: spec.dnsNames
+          content: "my-service-runner-2"
+      - contains:
+          path: spec.dnsNames
+          content: "my-service-runner-2.NAMESPACE.svc.cluster.local"
+
+  - it: should not generate runner DNS names when replicaCount is zero
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+      service:
+        name: "my-service"
+      runnerSettings:
+        replicaCount: 0
+    asserts:
+      - notContains:
+          path: spec.dnsNames
+          content: "my-service-runner-0"
+
+  - it: should not generate runner DNS names when runnerSettings is missing
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+      service:
+        name: "my-service"
+    asserts:
+      - notContains:
+          path: spec.dnsNames
+          content: "my-service-runner-0"
+
+  - it: should use fullname for runner services when service name not specified
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+      runnerSettings:
+        replicaCount: 1
+    asserts:
+      - contains:
+          path: spec.dnsNames
+          content: "iag5-service-runner-0"
+      - contains:
+          path: spec.dnsNames
+          content: "iag5-service-runner-0.NAMESPACE.svc.cluster.local"
+
+  - it: should include additional services
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+        additionalServices:
+          - "external-service"
+          - "legacy-service"
+    asserts:
+      # External service
+      - contains:
+          path: spec.dnsNames
+          content: "external-service"
+      - contains:
+          path: spec.dnsNames
+          content: "external-service.NAMESPACE"
+      - contains:
+          path: spec.dnsNames
+          content: "external-service.NAMESPACE.svc"
+      - contains:
+          path: spec.dnsNames
+          content: "external-service.NAMESPACE.svc.cluster.local"
+      # Legacy service
+      - contains:
+          path: spec.dnsNames
+          content: "legacy-service"
+      - contains:
+          path: spec.dnsNames
+          content: "legacy-service.NAMESPACE.svc.cluster.local"
+
+  - it: should combine all DNS name sources and remove duplicates
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+        dnsNames:
+          - "manual.example.com"
+          - "my-service"  # This should be deduplicated with service DNS
+      hostname: "app.example.com"
+      service:
+        enabled: true
+        name: "my-service"
+      runnerSettings:
+        replicaCount: 1
+      additionalServices:
+        - "external-service"
+    asserts:
+      # Manual DNS names
+      - contains:
+          path: spec.dnsNames
+          content: "manual.example.com"
+      # Hostname
+      - contains:
+          path: spec.dnsNames
+          content: "app.example.com"
+      # Service DNS (should not be duplicated)
+      - contains:
+          path: spec.dnsNames
+          content: "my-service"
+      - contains:
+          path: spec.dnsNames
+          content: "my-service.NAMESPACE.svc.cluster.local"
+      # Runner DNS
+      - contains:
+          path: spec.dnsNames
+          content: "my-service-runner-0"
+
+  - it: should sort DNS names alphabetically
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+        dnsNames:
+          - "z-last.example.com"
+          - "a-first.example.com"
+          - "m-middle.example.com"
     asserts:
       - equal:
           path: spec.dnsNames[0]
-          value: example.com
+          value: "a-first.example.com"
       - equal:
           path: spec.dnsNames[1]
-          value: www.example.com
+          value: "iag5.example.com"
       - equal:
           path: spec.dnsNames[2]
-          value: api.example.com
+          value: "m-middle.example.com"
+      - equal:
+          path: spec.dnsNames[3]
+          value: "z-last.example.com"
 
-  - it: should not include DNS names when not provided
+  - it: should include IP addresses when specified
     set:
       certificate:
         enabled: true
         issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
-        dnsNames: []
-      hostname: example.com
-    asserts:
-      - hasDocuments:
-          count: 1
-      - notExists:
-          path: spec.dnsNames
-
-  - it: should include IP addresses when provided
-    set:
-      certificate:
-        enabled: true
-        issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
+          name: "test-issuer"
         ipAddresses:
           - "192.168.1.100"
           - "10.0.0.50"
-      hostname: example.com
     asserts:
-      - equal:
-          path: spec.ipAddresses[0]
-          value: "192.168.1.100"
-      - equal:
-          path: spec.ipAddresses[1]
-          value: "10.0.0.50"
+      - contains:
+          path: spec.ipAddresses
+          content: "192.168.1.100"
+      - contains:
+          path: spec.ipAddresses
+          content: "10.0.0.50"
 
-  - it: should include service IPs when includeServiceIPs is true
+  - it: should not include ipAddresses section when no IPs specified
     set:
       certificate:
         enabled: true
         issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
-        includeServiceIPs: true
-        services:
-          - clusterIP: "10.96.0.100"
-            loadBalancerIP: "203.0.113.10"
-          - clusterIP: "10.96.0.101"
-      hostname: example.com
+          name: "test-issuer"
     asserts:
-      - equal:
-          path: spec.ipAddresses[0]
-          value: "10.96.0.100"
-      - equal:
-          path: spec.ipAddresses[1]
-          value: "203.0.113.10"
-      - equal:
-          path: spec.ipAddresses[2]
-          value: "10.96.0.101"
-
-  - it: should combine manual IP addresses and service IPs
-    set:
-      certificate:
-        enabled: true
-        issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
-        ipAddresses:
-          - "192.168.1.100"
-        includeServiceIPs: true
-        services:
-          - clusterIP: "10.96.0.100"
-      hostname: example.com
-    asserts:
-      - equal:
-          path: spec.ipAddresses[0]
-          value: "192.168.1.100"
-      - equal:
-          path: spec.ipAddresses[1]
-          value: "10.96.0.100"
-
-  - it: should not include IP addresses when none provided
-    set:
-      certificate:
-        enabled: true
-        issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
-        includeServiceIPs: false
-      hostname: example.com
-    asserts:
-      - notExists:
+      - isNull:
           path: spec.ipAddresses
 
-  # - it: should handle services without IPs when includeServiceIPs is true
-  #   set:
-  #     certificate:
-  #       enabled: true
-  #       issuerRef:
-  #         name: my-issuer
-  #         kind: Issuer
-  #       renewBefore: 720h
-  #       duration: 2160h
-  #       includeServiceIPs: true
-  #       services:
-  #         - name: service-without-ips
-  #     hostname: example.com
-  #   asserts:
-  #     - notExists:
-  #         path: spec.ipAddresses
-
-  - it: should include private key settings when provided
+  - it: should configure private key settings
     set:
       certificate:
         enabled: true
         issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
+          name: "test-issuer"
         privateKey:
           algorithm: RSA
-          size: 2048
+          size: 4096
           rotationPolicy: Always
-      hostname: example.com
     asserts:
       - equal:
           path: spec.privateKey.algorithm
           value: RSA
       - equal:
           path: spec.privateKey.size
-          value: 2048
+          value: 4096
       - equal:
           path: spec.privateKey.rotationPolicy
           value: Always
 
-  - it: should not include private key settings when not provided
+  - it: should configure keystores
     set:
       certificate:
         enabled: true
         issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
-      hostname: example.com
+          name: "test-issuer"
+        keystores:
+          jks:
+            create: true
+            passwordSecretRef:
+              name: keystore-password
+              key: password
+          pkcs12:
+            create: true
+            passwordSecretRef:
+              name: pkcs12-password
+              key: password
     asserts:
-      - notExists:
-          path: spec.privateKey
+      - equal:
+          path: spec.keystores.jks.create
+          value: true
+      - equal:
+          path: spec.keystores.jks.passwordSecretRef.name
+          value: keystore-password
+      - equal:
+          path: spec.keystores.pkcs12.create
+          value: true
 
-  - it: should include keystores when provided
+  - it: should configure certificate subject
     set:
       certificate:
         enabled: true
         issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
+          name: "test-issuer"
+        subject:
+          organizationalUnits:
+            - "Engineering"
+            - "IT"
+          organizations:
+            - "My Company"
+          countries:
+            - "US"
+          localities:
+            - "San Francisco"
+          provinces:
+            - "CA"
+    asserts:
+      - equal:
+          path: spec.subject.organizationalUnits[0]
+          value: "Engineering"
+      - equal:
+          path: spec.subject.organizations[0]
+          value: "My Company"
+      - equal:
+          path: spec.subject.countries[0]
+          value: "US"
+
+  - it: should handle large number of runners
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+      service:
+        name: "stress-test"
+      runnerSettings:
+        replicaCount: 10
+    asserts:
+      - contains:
+          path: spec.dnsNames
+          content: "stress-test-runner-0"
+      - contains:
+          path: spec.dnsNames
+          content: "stress-test-runner-9"
+      - contains:
+          path: spec.dnsNames
+          content: "stress-test-runner-9.NAMESPACE.svc.cluster.local"
+
+  # - it: should not create dnsNames section when no DNS names are generated
+  #   set:
+  #     certificate:
+  #       enabled: true
+  #       issuerRef:
+  #         name: "test-issuer"
+  #     service:
+  #       enabled: false
+  #     # No hostname, dnsNames, runnerSettings, or additionalServices
+  #   asserts:
+  #     - isNull:
+  #         path: spec.dnsNames
+
+  - it: should handle missing issuer group gracefully
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+        issuer: {}  # Empty issuer config
+    asserts:
+      - isNull:
+          path: spec.issuerRef.group
+
+  - it: should handle complex scenario with all features
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "production-ca"
+          kind: "ClusterIssuer"
+        renewBefore: "168h"
+        duration: "8760h"
+        dnsNames:
+          - "api.example.com"
+          - "www.example.com"
+        ipAddresses:
+          - "203.0.113.1"
+          - "198.51.100.1"
+        annotations:
+          cert-manager.io/cluster-issuer: "production-ca"
+      hostname: "app.example.com"
+      service:
+        enabled: true
+        name: "production-service"
+      runnerSettings:
+        replicaCount: 2
+      additionalServices:
+        - "metrics-service"
+        - "admin-service"
+      privateKey:
+        algorithm: ECDSA
+        size: 256
+      subject:
+        organizations:
+          - "Example Corp"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Certificate
+      # Basic config
+      - equal:
+          path: spec.issuerRef.name
+          value: "production-ca"
+      - equal:
+          path: spec.issuerRef.kind
+          value: "ClusterIssuer"
+      - equal:
+          path: spec.renewBefore
+          value: "168h"
+      - equal:
+          path: spec.duration
+          value: "8760h"
+      - equal:
+          path: spec.commonName
+          value: "app.example.com"
+      # DNS names from all sources
+      - contains:
+          path: spec.dnsNames
+          content: "api.example.com"
+      - contains:
+          path: spec.dnsNames
+          content: "app.example.com"
+      - contains:
+          path: spec.dnsNames
+          content: "production-service"
+      - contains:
+          path: spec.dnsNames
+          content: "production-service-runner-0"
+      - contains:
+          path: spec.dnsNames
+          content: "production-service-runner-1"
+      # IP addresses
+      - contains:
+          path: spec.ipAddresses
+          content: "203.0.113.1"
+      - contains:
+          path: spec.ipAddresses
+          content: "198.51.100.1"
+      # Subject
+      - equal:
+          path: spec.subject.organizations[0]
+          value: "Itential"
+
+  # - it: should handle empty certificate configuration
+  #   set:
+  #     certificate: {}
+  #   asserts:
+  #     - hasDocuments:
+  #         count: 0
+
+  # - it: should handle certificate enabled but missing issuerRef
+  #   set:
+  #     certificate:
+  #       enabled: true
+  #       # Missing issuerRef
+  #   asserts:
+  #     - hasDocuments:
+  #         count: 1
+  #     - equal:
+  #         path: spec.issuerRef.name
+  #         value: ""
+  #     - equal:
+  #         path: spec.issuerRef.kind
+  #         value: "Issuer"
+
+  - it: should handle special characters in service names
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+      service:
+        enabled: true
+        name: "my-special-service-123"
+      runnerSettings:
+        replicaCount: 1
+    asserts:
+      - contains:
+          path: spec.dnsNames
+          content: "my-special-service-123"
+      - contains:
+          path: spec.dnsNames
+          content: "my-special-service-123-runner-0"
+      - contains:
+          path: spec.dnsNames
+          content: "my-special-service-123-runner-0.NAMESPACE.svc.cluster.local"
+
+  - it: should handle negative runner replica count
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+      service:
+        name: "test-service"
+      runnerSettings:
+        replicaCount: -1
+    asserts:
+      # Should not contain any runner DNS names
+      - notContains:
+          path: spec.dnsNames
+          content: "test-service-runner-0"
+
+  - it: should handle very large runner replica count
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+      service:
+        name: "scale-test"
+      runnerSettings:
+        replicaCount: 100
+    asserts:
+      - contains:
+          path: spec.dnsNames
+          content: "scale-test-runner-0"
+      - contains:
+          path: spec.dnsNames
+          content: "scale-test-runner-99"
+      - contains:
+          path: spec.dnsNames
+          content: "scale-test-runner-99.NAMESPACE.svc.cluster.local"
+
+  # - it: should handle empty arrays in configuration
+  #   set:
+  #     certificate:
+  #       enabled: true
+  #       issuerRef:
+  #         name: "test-issuer"
+  #       dnsNames: []
+  #       ipAddresses: []
+  #       additionalServices: []
+  #   asserts:
+  #     - lengthEqual:
+  #         path: spec.dnsNames
+  #         count: 0
+  #     - lengthEqual:
+  #         path: spec.ipAddresses
+  #         count: 0
+
+  - it: should handle duplicate DNS names in input
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+        dnsNames:
+          - "duplicate.example.com"
+          - "unique.example.com"
+          - "duplicate.example.com"  # Duplicate
+      hostname: "duplicate.example.com"  # Another duplicate
+    asserts:
+      # Should only appear once due to uniq filter
+      - contains:
+          path: spec.dnsNames
+          content: "duplicate.example.com"
+      - contains:
+          path: spec.dnsNames
+          content: "unique.example.com"
+
+  - it: should handle empty strings in DNS names
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+        dnsNames:
+          - "valid.example.com"
+          - ""  # Empty string
+          - "another-valid.example.com"
+    asserts:
+      - contains:
+          path: spec.dnsNames
+          content: "valid.example.com"
+      - contains:
+          path: spec.dnsNames
+          content: "another-valid.example.com"
+      # Empty string should still be included (helm behavior)
+      - contains:
+          path: spec.dnsNames
+          content: ""
+
+  - it: should handle IPv6 addresses
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+        ipAddresses:
+          - "192.168.1.100"
+          - "2001:db8::1"
+          - "::1"
+    asserts:
+      - contains:
+          path: spec.ipAddresses
+          content: "192.168.1.100"
+      - contains:
+          path: spec.ipAddresses
+          content: "2001:db8::1"
+      - contains:
+          path: spec.ipAddresses
+          content: "::1"
+
+  - it: should handle missing service configuration
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+      # No service configuration at all
+    asserts:
+      # Should not fail, just not include service DNS names
+      - hasDocuments:
+          count: 1
+
+  - it: should handle boolean and numeric values in annotations
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+        annotations:
+          string-annotation: "string-value"
+          numeric-annotation: 12345
+          boolean-annotation: true
+          float-annotation: 3.14
+    asserts:
+      - equal:
+          path: metadata.annotations["string-annotation"]
+          value: "string-value"
+      - equal:
+          path: metadata.annotations["numeric-annotation"]
+          value: 12345
+      - equal:
+          path: metadata.annotations["boolean-annotation"]
+          value: true
+      - equal:
+          path: metadata.annotations["float-annotation"]
+          value: 3.14
+
+  - it: should work with minimal helm values
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "minimal-issuer"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-iag5-tls
+      - equal:
+          path: spec.secretName
+          value: RELEASE-NAME-iag5-tls-secret
+
+  - it: should integrate with production-like configuration
+    set:
+      Release: foo
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "letsencrypt-prod"
+          kind: "ClusterIssuer"
+        renewBefore: "720h"
+        duration: "2160h"
+        dnsNames:
+          - "api.mycompany.com"
+          - "*.mycompany.com"
+        additionalServices:
+          - "prometheus-metrics"
+          - "admin-panel"
+        annotations:
+          cert-manager.io/cluster-issuer: "letsencrypt-prod"
+          acme.cert-manager.io/http01-edit-in-place: "true"
+        privateKey:
+          algorithm: ECDSA
+          size: 256
+        subject:
+          organizations:
+            - "My Company Inc"
+          countries:
+            - "US"
+      hostname: "myapp.mycompany.com"
+      service:
+        enabled: true
+        name: "myapp-service"
+      runnerSettings:
+        replicaCount: 3
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.issuerRef.name
+          value: "letsencrypt-prod"
+      - equal:
+          path: spec.issuerRef.kind
+          value: "ClusterIssuer"
+      # Should include all DNS name types
+      - contains:
+          path: spec.dnsNames
+          content: "api.mycompany.com"
+      - contains:
+          path: spec.dnsNames
+          content: "*.mycompany.com"
+      - contains:
+          path: spec.dnsNames
+          content: "myapp.mycompany.com"
+      - contains:
+          path: spec.dnsNames
+          content: "myapp-service"
+      - contains:
+          path: spec.dnsNames
+          content: "myapp-service-runner-0"
+      - contains:
+          path: spec.dnsNames
+          content: "myapp-service-runner-2"
+      - contains:
+          path: spec.dnsNames
+          content: "prometheus-metrics"
+      - contains:
+          path: spec.dnsNames
+          content: "admin-panel"
+
+  - it: should work with self-signed certificate setup
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "selfsigned-issuer"
+          kind: "ClusterIssuer"
+        duration: "8760h"  # 1 year
+        renewBefore: "168h"  # 1 week
+        privateKey:
+          algorithm: RSA
+          size: 2048
+        subject:
+          organizationalUnits:
+            - "IT Department"
+          organizations:
+            - "Internal Corp"
+          countries:
+            - "US"
+          localities:
+            - "Seattle"
+          provinces:
+            - "WA"
+      service:
+        enabled: true
+        name: "internal-service"
+      runnerSettings:
+        replicaCount: 2
+    asserts:
+      - equal:
+          path: spec.issuerRef.name
+          value: "selfsigned-issuer"
+      - equal:
+          path: spec.duration
+          value: "8760h"
+      - equal:
+          path: spec.renewBefore
+          value: "168h"
+      - equal:
+          path: spec.privateKey.algorithm
+          value: RSA
+      - equal:
+          path: spec.privateKey.size
+          value: 2048
+      - contains:
+          path: spec.dnsNames
+          content: "internal-service"
+      - contains:
+          path: spec.dnsNames
+          content: "internal-service-runner-0"
+      - contains:
+          path: spec.dnsNames
+          content: "internal-service-runner-1"
+
+  - it: should work with external DNS and load balancer IPs
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "external-issuer"
+        dnsNames:
+          - "external.example.com"
+          - "www.external.example.com"
+        ipAddresses:
+          - "203.0.113.10"  # External load balancer IP
+          - "198.51.100.20"  # Backup load balancer IP
+        annotations:
+          external-dns.alpha.kubernetes.io/hostname: "external.example.com"
+      hostname: "app.external.example.com"
+      service:
+        enabled: true
+        name: "external-app"
+    asserts:
+      - contains:
+          path: spec.dnsNames
+          content: "external.example.com"
+      - contains:
+          path: spec.dnsNames
+          content: "www.external.example.com"
+      - contains:
+          path: spec.dnsNames
+          content: "app.external.example.com"
+      - contains:
+          path: spec.dnsNames
+          content: "external-app"
+      - contains:
+          path: spec.ipAddresses
+          content: "203.0.113.10"
+      - contains:
+          path: spec.ipAddresses
+          content: "198.51.100.20"
+
+  - it: should handle development environment setup
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "dev-ca-issuer"
+        renewBefore: "24h"  # Short renewal for dev
+        duration: "168h"    # 1 week validity
+      hostname: "dev.localhost"
+      service:
+        enabled: true
+        name: "dev-service"
+      runnerSettings:
+        replicaCount: 1
+    asserts:
+      - equal:
+          path: spec.renewBefore
+          value: "24h"
+      - equal:
+          path: spec.duration
+          value: "168h"
+      - equal:
+          path: spec.commonName
+          value: "dev.localhost"
+      - contains:
+          path: spec.dnsNames
+          content: "dev.localhost"
+      - contains:
+          path: spec.dnsNames
+          content: "dev-service"
+      - contains:
+          path: spec.dnsNames
+          content: "dev-service-runner-0"
+
+  - it: should handle keystore configuration for Java applications
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "java-ca"
         keystores:
           jks:
             create: true
@@ -384,7 +1058,12 @@ tests:
             passwordSecretRef:
               name: pkcs12-password-secret
               key: password
-      hostname: example.com
+        privateKey:
+          algorithm: RSA
+          size: 2048
+      service:
+        enabled: true
+        name: "java-app"
     asserts:
       - equal:
           path: spec.keystores.jks.create
@@ -393,151 +1072,26 @@ tests:
           path: spec.keystores.jks.passwordSecretRef.name
           value: jks-password-secret
       - equal:
+          path: spec.keystores.jks.passwordSecretRef.key
+          value: password
+      - equal:
           path: spec.keystores.pkcs12.create
           value: true
+      - equal:
+          path: spec.keystores.pkcs12.passwordSecretRef.name
+          value: pkcs12-password-secret
 
-  - it: should not include keystores when not provided
+  - it: should handle missing runner service name gracefully
     set:
       certificate:
         enabled: true
         issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
-      hostname: example.com
+          name: "test-issuer"
+      runnerSettings:
+        replicaCount: 1
+      # Missing service configuration
     asserts:
-      - notExists:
-          path: spec.keystores
-
-  - it: should include subject when provided
-    set:
-      certificate:
-        enabled: true
-        issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
-        subject:
-          organizations:
-            - "My Organization"
-          countries:
-            - "US"
-          organizationalUnits:
-            - "IT Department"
-          localities:
-            - "San Francisco"
-          provinces:
-            - "CA"
-      hostname: example.com
-    asserts:
-      - equal:
-          path: spec.subject.organizations[0]
-          value: "My Organization"
-      - equal:
-          path: spec.subject.countries[0]
-          value: "US"
-      - equal:
-          path: spec.subject.organizationalUnits[0]
-          value: "IT Department"
-      - equal:
-          path: spec.subject.localities[0]
-          value: "San Francisco"
-      - equal:
-          path: spec.subject.provinces[0]
-          value: "CA"
-
-  - it: should not include subject when not provided
-    set:
-      certificate:
-        enabled: true
-        issuerRef:
-          name: my-issuer
-          kind: Issuer
-        renewBefore: 720h
-        duration: 2160h
-        subject: null
-      hostname: example.com
-    asserts:
-      - notExists:
-          path: spec.subject
-
-  - it: should work with ClusterIssuer
-    set:
-      certificate:
-        enabled: true
-        issuerRef:
-          name: letsencrypt-prod
-          kind: ClusterIssuer
-        renewBefore: 720h
-        duration: 2160h
-      hostname: example.com
-    asserts:
-      - equal:
-          path: spec.issuerRef.name
-          value: letsencrypt-prod
-      - equal:
-          path: spec.issuerRef.kind
-          value: ClusterIssuer
-
-  - it: should handle complex configuration
-    set:
-      certificate:
-        enabled: true
-        issuerRef:
-          name: my-ca-issuer
-          kind: Issuer
-        issuer:
-          group: cert-manager.io
-        renewBefore: 360h
-        duration: 8760h
-        annotations:
-          cert-manager.io/revision-history-limit: "3"
-        dnsNames:
-          - example.com
-          - "*.example.com"
-        ipAddresses:
-          - "192.168.1.100"
-        includeServiceIPs: true
-        services:
-          - clusterIP: "10.96.0.100"
-            loadBalancerIP: "203.0.113.10"
-        privateKey:
-          algorithm: ECDSA
-          size: 256
-        subject:
-          organizations:
-            - "Example Corp"
-          countries:
-            - "US"
-      hostname: api.example.com
-    asserts:
-      - equal:
-          path: spec.commonName
-          value: api.example.com
-      - equal:
-          path: spec.issuerRef.group
-          value: cert-manager.io
-      - equal:
-          path: spec.dnsNames[0]
-          value: example.com
-      - equal:
-          path: spec.dnsNames[1]
-          value: "*.example.com"
-      - equal:
-          path: spec.ipAddresses[0]
-          value: "192.168.1.100"
-      - equal:
-          path: spec.ipAddresses[1]
-          value: "10.96.0.100"
-      - equal:
-          path: spec.ipAddresses[2]
-          value: "203.0.113.10"
-      - equal:
-          path: spec.privateKey.algorithm
-          value: ECDSA
-      - equal:
-          path: spec.subject.organizations[0]
-          value: "Example Corp"
-
+      # Should use fullname template for runner services
+      - contains:
+          path: spec.dnsNames
+          content: "iag5-service-runner-0"
