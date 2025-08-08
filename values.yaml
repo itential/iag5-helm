@@ -88,12 +88,14 @@ service:
 
 # The issuer to be used if using cert-manager to generate the TLS certificates
 issuer:
+  # -- The issuer type. Template defaults to Issuer.
+  kind: ClusterIssuer
   # -- Toggle to use the issuer object or not
   enabled: true
   # -- The name of this issuer.
   name: iag5-ca-issuer
   # -- The CA secret to be used by this issuer when creating TLS certificates.
-  caSecretName: iag5-ca
+  caSecretName: itential-ca
 
 # The certificate object to use by cert-manager to generate the TLS certificates.
 certificate:
