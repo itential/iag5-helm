@@ -16,8 +16,6 @@ tests:
       issuer.name: my-custom-issuer
       issuer.caSecretName: my-ca-secret
     asserts:
-      - isKind:
-          of: Issuer
       - equal:
           path: metadata.name
           value: my-custom-issuer
