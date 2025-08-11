@@ -82,7 +82,7 @@ service:
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-type: nlb
     service.beta.kubernetes.io/aws-load-balancer-internal: "false"
-    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "TCP"
     external-dns.alpha.kubernetes.io/hostname: iag5.example.com
     external-dns.alpha.kubernetes.io/ttl: "60"
 

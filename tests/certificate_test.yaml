@@ -58,6 +58,33 @@ tests:
           path: metadata.annotations["another-annotation"]
           value: "another-value"
 
+  - it: should have the expected standard annotations
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+    asserts:
+      - exists:
+          path: metadata.annotations["itential.com/copyright"]
+      - exists:
+          path: metadata.annotations["itential.com/license"]
+      - exists:
+          path: metadata.annotations["helm.sh/template-file"]
+
+  - it: should allow for custom annotations
+    set:
+      certificate:
+        enabled: true
+        issuerRef:
+          name: "test-issuer"
+        annotations:
+          foo: "bar"
+    asserts:
+      - equal:
+          path: metadata.annotations["foo"]
+          value: bar
+
   - it: should configure issuer settings correctly
     set:
       certificate:

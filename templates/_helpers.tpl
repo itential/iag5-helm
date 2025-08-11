@@ -90,3 +90,12 @@ Usage: {{ include "iag5.etcdServiceURL" . }}
 {{- $etcdPort := 2379 -}}
 {{- printf "%s:%d" (include "iag5.etcdServiceDNS" .) $etcdPort -}}
 {{- end -}}
+
+{{/*
+Common annotations.
+*/}}
+{{- define "iag5.annotations" -}}
+itential.com/copyright: "Copyright (c) {{ now | date "2006" }}, Itential, Inc."
+itential.com/license: "GNU General Public License v3.0+ (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.txt)"
+helm.sh/template-file: "{{ $.Template.Name }}"
+{{- end -}}

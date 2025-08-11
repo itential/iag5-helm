@@ -39,6 +39,29 @@ tests:
       - exists:
           path: spec.template.metadata.labels
 
+  - it: should have the expected standard annotations
+    set:
+      serverSettings:
+        replicaCount: 1
+    asserts:
+      - exists:
+          path: spec.template.metadata.annotations["itential.com/copyright"]
+      - exists:
+          path: spec.template.metadata.annotations["itential.com/license"]
+      - exists:
+          path: spec.template.metadata.annotations["helm.sh/template-file"]
+
+  - it: should allow for custom annotations
+    set:
+      serverSettings:
+        replicaCount: 1
+      podAnnotations:
+        foo: "bar"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["foo"]
+          value: bar
+
   - it: should set GATEWAY_APPLICATION_MODE to server
     set:
       serverSettings:
