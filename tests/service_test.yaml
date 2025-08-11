@@ -48,3 +48,33 @@ tests:
       - equal:
           path: spec.selector["app.kubernetes.io/component"]
           value: server
+
+  - it: should have the expected standard annotations
+    set:
+      service:
+        name: test-service
+        type: ClusterIP
+        port: 8080
+        targetPort: 8080
+        annotations: {}
+    asserts:
+      - exists:
+          path: metadata.annotations["itential.com/copyright"]
+      - exists:
+          path: metadata.annotations["itential.com/license"]
+      - exists:
+          path: metadata.annotations["helm.sh/template-file"]
+
+  - it: should allow for custom annotations
+    set:
+      service:
+        name: test-service
+        type: ClusterIP
+        port: 8080
+        targetPort: 8080
+        annotations:
+          foo: "bar"
+    asserts:
+      - equal:
+          path: metadata.annotations["foo"]
+          value: bar

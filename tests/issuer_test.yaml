@@ -24,3 +24,28 @@ tests:
       - equal:
           path: spec.ca.secretName
           value: my-ca-secret
+
+  - it: should have the expected standard annotations
+    set:
+      issuer.enabled: true
+      issuer.name: my-custom-issuer
+      issuer.caSecretName: my-ca-secret
+    asserts:
+      - exists:
+          path: metadata.annotations["itential.com/copyright"]
+      - exists:
+          path: metadata.annotations["itential.com/license"]
+      - exists:
+          path: metadata.annotations["helm.sh/template-file"]
+
+  - it: should allow for custom annotations
+    set:
+      issuer.enabled: true
+      issuer.name: my-custom-issuer
+      issuer.caSecretName: my-ca-secret
+      issuer.annotations:
+        foo: "bar"
+    asserts:
+      - equal:
+          path: metadata.annotations["foo"]
+          value: bar

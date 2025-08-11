@@ -42,6 +42,29 @@ tests:
           path: spec.template.metadata.labels["app.kubernetes.io/component"]
           value: runner
 
+  - it: should have the expected standard annotations
+    set:
+      runnerSettings:
+        replicaCount: 1
+    asserts:
+      - exists:
+          path: spec.template.metadata.annotations["itential.com/copyright"]
+      - exists:
+          path: spec.template.metadata.annotations["itential.com/license"]
+      - exists:
+          path: spec.template.metadata.annotations["helm.sh/template-file"]
+
+  - it: should allow for custom annotations
+    set:
+      runnerSettings:
+        replicaCount: 1
+      podAnnotations:
+        foo: "bar"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["foo"]
+          value: bar
+
   - it: should set correct selector labels
     set:
       runnerSettings:

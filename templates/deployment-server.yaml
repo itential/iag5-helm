@@ -1,7 +1,4 @@
 {{- if (.Values.serverSettings).replicaCount }}
-# Copyright (c) 2025, Itential, Inc
-# GNU General Public License v3.0+ (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.txt)
-# Source: iag5/templates/deployment-server.yaml
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -16,8 +13,9 @@ spec:
       {{- include "iag5.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
       annotations:
+        {{- include "iag5.annotations" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
