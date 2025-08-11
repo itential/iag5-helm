@@ -201,7 +201,7 @@ simply values that were used during development and testing.
 | applicationSettings.env.GATEWAY_APPLICATION_CA_CERTIFICATE_FILE | string | `"/etc/ssl/gateway/ca.crt"` | When using certificates with TLS, this variable allows you to set the application CA. This is set on the application level since the CA should be used for all runner, server, and client implementations. |
 | applicationSettings.env.GATEWAY_APPLICATION_CLUSTER_ID | string | `"cluster_1"` | The ID that uniquely identifies your gateway instance or a cluster of related gateway instances. This is also used to link a gateway controller node to Gateway Manager so that automations can be sent to a particular cluster. |
 | applicationSettings.env.GATEWAY_LOG_LEVEL | string | `"INFO"` | Sets the verbosity of the logs that the gateway displays to the console and file logs. Possible values are: TRACE, DEBUG, INFO, WARN, ERROR, FATAL, DISABLED. |
-| applicationSettings.env.GATEWAY_STORE_BACKEND | string | `"memory"` | Sets the backend type for persistent data storage. Itential Automation Gateway (IAG) uses stores as key-value databases to persistently save objects. IAG supports three types of store backends: "local", "memory", "etcd", "dynamodb" |
+| applicationSettings.env.GATEWAY_STORE_BACKEND | string | `"etcd"` | Sets the backend type for persistent data storage. Itential Automation Gateway (IAG) uses stores as key-value databases to persistently save objects. IAG supports three types of store backends: "local", "memory", "etcd", "dynamodb" |
 | applicationSettings.env.GATEWAY_STORE_ETCD_CA_CERTIFICATE_FILE | string | `"/etc/ssl/etcd/ca.crt"` | The certificate authority certificate file that the gateway uses when it connects to the etcd store backend. |
 | applicationSettings.env.GATEWAY_STORE_ETCD_CERTIFICATE_FILE | string | `"/etc/ssl/etcd/tls-client.crt"` | The public certificate file that the gateway uses when it connects to the etcd store backend. |
 | applicationSettings.env.GATEWAY_STORE_ETCD_CLIENT_CERT_AUTH | bool | `false` | Determines the TLS authentication method used when connecting to an etcd store backend and GATEWAY_STORE_ETCD_USE_TLS is set to true. More information on this variable can be found in the documentation here: https://docs.itential.com/docs/gateway-store-variables |
@@ -227,8 +227,9 @@ simply values that were used during development and testing.
 | image.repository | string | `"497639811223.dkr.ecr.us-east-2.amazonaws.com/automation-gateway5"` | The image repository |
 | image.tag | string | `"5.1.1-amd64"` | The image tag |
 | imagePullSecrets | list | `[{"name":""}]` | The secrets object used to pull the image from the repo |
-| issuer.caSecretName | string | `"iag5-ca"` | The CA secret to be used by this issuer when creating TLS certificates. |
+| issuer.caSecretName | string |  | The CA secret to be used by this issuer when creating TLS certificates. |
 | issuer.enabled | bool | `true` | Toggle to use the issuer object or not |
+| issuer.kind | string | `"ClusterIssuer"` | The issuer type. Template defaults to Issuer. |
 | issuer.name | string | `"iag5-ca-issuer"` | The name of this issuer. |
 | nodeSelector | object | `{}` | Additional nodeSelectors |
 | podAnnotations | object | `{}` | Additional pod annotations |
@@ -237,13 +238,13 @@ simply values that were used during development and testing.
 | port | int | `50051` | The intended port to use |
 | runnerSettings.env.GATEWAY_RUNNER_CERTIFICATE_FILE | string | `"/etc/ssl/gateway/tls.crt"` | Sets the full path to the certificate file that the gateway runner uses when it connects to a gateway server. This setting is required when GATEWAY_RUNNER_USE_TLS is enabled. If cert-manager is used then this default value doesn't need to change. |
 | runnerSettings.env.GATEWAY_RUNNER_PRIVATE_KEY_FILE | string | `"/etc/ssl/gateway/tls.key"` | Sets the full path to the private key file the gateway runner uses when it connects to a gateway server. This setting is required when GATEWAY_RUNNER_USE_TLS is enabled. If cert-manager is used then this default value doesn't need to change. |
-| runnerSettings.env.GATEWAY_RUNNER_USE_TLS | bool | `false` | Determines whether or not a gateway runner requires TLS when connecting to a gateway server. |
+| runnerSettings.env.GATEWAY_RUNNER_USE_TLS | bool | `true` | Determines whether or not a gateway runner requires TLS when connecting to a gateway server. |
 | runnerSettings.replicaCount | int | `0` | The number of runners to use. Set to zero to disable distributed runners. |
 | securityContext | object | `{}` | Additional security context |
 | serverSettings.env.GATEWAY_CONNECT_CERTIFICATE_FILE | string | `"/etc/ssl/gateway/tls.crt"` | Specifies the full path to the certificate file used to establish a secure connection to Gateway Manager. |
 | serverSettings.env.GATEWAY_CONNECT_ENABLED | bool | `true` | Enables or disables the connection to Gateway Manager. |
 | serverSettings.env.GATEWAY_CONNECT_HOSTS | string | `"iag5.example.com:8080"` | Configures the hostname and port used to connect to Gateway Manager. |
-| serverSettings.env.GATEWAY_CONNECT_INSECURE_TLS | bool | `true` | Determines whether the gateway verifies TLS certificates when it connects to Itential Platform. When set to true, the gateway skips TLS certificate verification. We strongly recommend enabling TLS certificate verification in production environments. |
+| serverSettings.env.GATEWAY_CONNECT_INSECURE_TLS | bool | `false` | Determines whether the gateway verifies TLS certificates when it connects to Itential Platform. When set to true, the gateway skips TLS certificate verification. We strongly recommend enabling TLS certificate verification in production environments. |
 | serverSettings.env.GATEWAY_CONNECT_PRIVATE_KEY_FILE | string | `"/etc/ssl/gateway/tls.key"` | Specifies the full path to the private key file that the gateway uses to connect to Gateway Manager. |
 | serverSettings.env.GATEWAY_CONNECT_SERVER_HA_ENABLED | bool | `false` | Enable this configuration variable when you have multiple all in one or core nodes for a particular GATEWAY_APPLICATION_CLUSTER_ID. When you enable High Availability (HA), the system runs in active/standby mode. One server connects to Gateway Manager while the others remain in standby mode. If the active node goes down, a standby node connects to Gateway Manager and begins serving requests. |
 | serverSettings.env.GATEWAY_CONNECT_SERVER_HA_IS_PRIMARY | bool | `false` | When you set GATEWAY_CONNECT_SERVER_HA_ENABLED to true, use this configuration variable to designate one node as the primary. When all nodes are online, this node takes the highest precedence and connects to Gateway Manager. Only one core HA node can connect to Gateway Manager at a time. If this node loses connection to Gateway Manager or the database, a standby node takes its place. |
@@ -251,7 +252,7 @@ simply values that were used during development and testing.
 | serverSettings.env.GATEWAY_SERVER_PRIVATE_KEY_FILE | string | `"/etc/ssl/gateway/tls.key"` | The full path to the private key file that the gateway server uses when serving connections to gateway clients. Required when GATEWAY_SERVER_USE_TLS is enabled. If cert-manager is used then this default value doesn't need to change. |
 | serverSettings.env.GATEWAY_SERVER_USE_TLS | bool | `true` | Determines whether a gateway server requires TLS when serving connections to gateway clients. |
 | serverSettings.replicaCount | int | `1` | The number of servers to use. At least one server must be defined. |
-| service.annotations | object |  | Annotations on the service object, passed through as is |
+| service.annotations | object | `{"external-dns.alpha.kubernetes.io/hostname":"iag5.example.com","external-dns.alpha.kubernetes.io/ttl":"60","service.beta.kubernetes.io/aws-load-balancer-backend-protocol":"tcp","service.beta.kubernetes.io/aws-load-balancer-internal":"false","service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}` | Annotations on the service object, passed through as is |
 | service.name | string | `"iag5-service"` | The name of this Kubernetes service object |
 | service.type | string | `"LoadBalancer"` | The service type |
 | tolerations | list | `[]` | Additonal tolerations |

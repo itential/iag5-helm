@@ -1,7 +1,7 @@
 {{- if .Values.issuer.enabled -}}
 ---
 apiVersion: cert-manager.io/v1
-kind: Issuer
+kind: {{ .Values.issuer.kind | default "Issuer" }}
 metadata:
   name: {{ .Values.issuer.name }}
   labels:
