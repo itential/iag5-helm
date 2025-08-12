@@ -28,4 +28,4 @@ jobs:
         run: helm lint .
 
       - name: Run Helm unit tests
-        run: helm unittest .
+        run: helm unittest . --strict

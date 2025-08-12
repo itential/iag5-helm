@@ -1,6 +1,8 @@
 suite: Test deployment-server.yaml template
 templates:
   - deployment-server.yaml
+values:
+  - ../tests/test-values.yaml
 tests:
   - it: should not render when serverSettings.replicaCount is not set
     set:

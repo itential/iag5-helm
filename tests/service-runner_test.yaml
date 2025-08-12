@@ -1,0 +1,310 @@
+suite: Test service-runner.yaml template
+templates:
+  - templates/service-runner.yaml
+values:
+  - ../tests/test-values.yaml
+tests:
+
+  - it: should create correct number of services based on replicaCount
+    set:
+      runnerSettings:
+        replicaCount: 3
+      service:
+        name: "test-service"
+        annotations:
+          custom: "annotation"
+      port: 8080
+    asserts:
+      - hasDocuments:
+          count: 3
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: "test-service-runner-0"
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: "test-service-runner-1"
+        documentIndex: 1
+      - equal:
+          path: metadata.name
+          value: "test-service-runner-2"
+        documentIndex: 2
+
+  - it: should create single service when replicaCount is 1
+    set:
+      runnerSettings:
+        replicaCount: 1
+      service:
+        name: "single-service"
+      port: 9000
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: "single-service-runner-0"
+
+  - it: should not create services when replicaCount is 0
+    set:
+      runnerSettings:
+        replicaCount: 0
+      service:
+        name: "no-service"
+      port: 8080
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should include correct annotations from helper and service values
+    set:
+      runnerSettings:
+        replicaCount: 1
+      service:
+        name: "test-service"
+        annotations:
+          service.custom/annotation: "value1"
+          another.annotation: "value2"
+      port: 8080
+      # Mock values for annotations helper
+      global:
+        annotations:
+          global.annotation: "global-value"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - exists:
+          path: metadata.annotations
+      - equal:
+          path: metadata.annotations["service.custom/annotation"]
+          value: "value1"
+      - equal:
+          path: metadata.annotations["another.annotation"]
+          value: "value2"
+
+  - it: should set correct service type as ClusterIP
+    set:
+      runnerSettings:
+        replicaCount: 2
+      service:
+        name: "test-service"
+      port: 8080
+    asserts:
+      - equal:
+          path: spec.type
+          value: "ClusterIP"
+        documentIndex: 0
+      - equal:
+          path: spec.type
+          value: "ClusterIP"
+        documentIndex: 1
+
+  - it: should configure ports correctly
+    set:
+      runnerSettings:
+        replicaCount: 1
+      service:
+        name: "test-service"
+      port: 3000
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 3000
+      - equal:
+          path: spec.ports[0].targetPort
+          value: 3000
+      - equal:
+          path: spec.ports[0].protocol
+          value: "TCP"
+      - equal:
+          path: spec.ports[0].name
+          value: "iag5-service-port"
+
+  - it: should include correct selector labels
+    set:
+      runnerSettings:
+        replicaCount: 1
+      service:
+        name: "test-service"
+      port: 8080
+      # These would typically come from your _helpers.tpl
+      nameOverride: ""
+      fullnameOverride: ""
+    asserts:
+      - exists:
+          path: spec.selector
+      - exists:
+          path: spec.selector["app.kubernetes.io/component"]
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: "runner"
+
+  - it: should include standard labels from helper
+    set:
+      runnerSettings:
+        replicaCount: 1
+      service:
+        name: "test-service"
+      port: 8080
+    asserts:
+      - exists:
+          path: metadata.labels
+      - exists:
+          path: metadata.labels["app.kubernetes.io/name"]
+      - exists:
+          path: metadata.labels["app.kubernetes.io/instance"]
+
+  - it: should handle string replicaCount conversion
+    set:
+      runnerSettings:
+        replicaCount: "2"  # String value
+      service:
+        name: "test-service"
+      port: 8080
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: metadata.name
+          value: "test-service-runner-0"
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: "test-service-runner-1"
+        documentIndex: 1
+
+  - it: should work with higher replicaCount values
+    set:
+      runnerSettings:
+        replicaCount: 5
+      service:
+        name: "scaled-service"
+      port: 8080
+    asserts:
+      - hasDocuments:
+          count: 5
+      - equal:
+          path: metadata.name
+          value: "scaled-service-runner-0"
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: "scaled-service-runner-4"
+        documentIndex: 4
+
+  - it: should work without service annotations
+    set:
+      runnerSettings:
+        replicaCount: 1
+      service:
+        name: "no-annotations"
+        # No annotations specified
+      port: 8080
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: "no-annotations-runner-0"
+
+  - it: should handle edge case with very high port numbers
+    set:
+      runnerSettings:
+        replicaCount: 1
+      service:
+        name: "high-port-service"
+      port: 65535
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 65535
+      - equal:
+          path: spec.ports[0].targetPort
+          value: 65535
+
+  - it: should validate YAML structure for multiple services
+    set:
+      runnerSettings:
+        replicaCount: 3
+      service:
+        name: "multi-service"
+        annotations:
+          test: "annotation"
+      port: 8080
+    asserts:
+      # Validate each document is a proper Service
+      - isKind:
+          of: Service
+        documentIndex: 0
+      - isKind:
+          of: Service
+        documentIndex: 1
+      - isKind:
+          of: Service
+        documentIndex: 2
+      # Validate each has required spec fields
+      - exists:
+          path: spec.ports
+        documentIndex: 0
+      - exists:
+          path: spec.selector
+        documentIndex: 0
+      - exists:
+          path: spec.type
+        documentIndex: 0
+
+  - it: should create services with consistent structure across replicas
+    set:
+      runnerSettings:
+        replicaCount: 2
+      service:
+        name: "consistent-service"
+      port: 9090
+    asserts:
+      # Both services should have identical structure except for name
+      - equal:
+          path: spec.type
+          value: "ClusterIP"
+        documentIndex: 0
+      - equal:
+          path: spec.type
+          value: "ClusterIP"
+        documentIndex: 1
+      - equal:
+          path: spec.ports[0].port
+          value: 9090
+        documentIndex: 0
+      - equal:
+          path: spec.ports[0].port
+          value: 9090
+        documentIndex: 1
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: "runner"
+        documentIndex: 0
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: "runner"
+        documentIndex: 1
+
+  - it: should have the expected standard annotations
+    set:
+      runnerSettings:
+        replicaCount: 2
+      service:
+        name: test-service
+        type: ClusterIP
+        port: 8080
+        targetPort: 8080
+    asserts:
+      - exists:
+          path: metadata.annotations["itential.com/copyright"]
+      - exists:
+          path: metadata.annotations["itential.com/license"]
+      - exists:
+          path: metadata.annotations["helm.sh/template-file"]
