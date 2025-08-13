@@ -1,7 +1,8 @@
 suite: Test service.yaml template
 templates:
   - templates/service.yaml
-
+values:
+  - ../tests/test-values.yaml
 tests:
   - it: should render a Service with correct name, ports
     set:

@@ -1,0 +1,298 @@
+# Default values for iag5.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# -- The intended hostname to use
+hostname: iag5.example.com
+
+# -- The intended port to use
+port: 50051
+
+# Set to false to disable etcd installation. Below is a sample Etcd configuration if using the
+# included dependency.
+etcd:
+  enabled: true
+  persistence:
+    enabled: true
+    storageClass: ""  # Use default storage class, or specify one
+    accessModes:
+      - ReadWriteOnce
+    size: 8Gi
+    annotations: {}
+    selector: {}
+
+  # For production, enable auth
+  auth:
+    rbac:
+      create: false
+      allowNoneAuthentication: true
+    token:
+      enabled: false
+
+  # Replica configuration
+  replicaCount: 3
+
+  # Resource limits
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+certManager:
+  # -- Toggles the use of cert-manager for managing the TLS certificates. Setting this to false
+  # means that creation of the TLS certificates will be manual and outside of the chart.
+  enabled: true
+
+external-dns:
+  # -- Optional dependency to generate a static external DNS name
+  enabled: false
+
+# The Itential image to use, its version, and its location
+image:
+  # -- The image repository
+  repository: "497639811223.dkr.ecr.us-east-2.amazonaws.com/automation-gateway5"
+  # -- The image tag
+  tag: "5.1.1-amd64"
+  # -- The image pull policy
+  pullPolicy: "IfNotPresent"
+
+# -- The secrets object used to pull the image from the repo
+imagePullSecrets:
+  - name: ""
+
+# -- Additional pod annotations
+podAnnotations: {}
+# -- Additional pod labels
+podLabels: {}
+# -- Additional pod security context
+podSecurityContext: {}
+# -- Additional security context
+securityContext: {}
+
+# The Kubernetes service object for this application
+service:
+  # -- The service type
+  type: "LoadBalancer"
+  # -- The name of this Kubernetes service object
+  name: "iag5-service"
+  # -- Annotations on the service object, passed through as is
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-internal: "false"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "TCP"
+    external-dns.alpha.kubernetes.io/hostname: iag5.example.com
+    external-dns.alpha.kubernetes.io/ttl: "60"
+
+# The issuer to be used if using cert-manager to generate the TLS certificates
+issuer:
+  # -- The issuer type. Template defaults to Issuer.
+  kind: ClusterIssuer
+  # -- Toggle to use the issuer object or not
+  enabled: true
+  # -- The name of this issuer.
+  name: iag5-ca-issuer
+  # -- The CA secret to be used by this issuer when creating TLS certificates.
+  caSecretName: itential-ca
+
+# The certificate object to use by cert-manager to generate the TLS certificates.
+certificate:
+  # -- Toggle to use the certificate object or not
+  enabled: true
+  issuerRef:
+    # -- The name of the issuer with the CA reference.
+    name: iag5-ca-issuer
+    # -- The issuer type
+    kind: Issuer
+  # -- Specifies how long before the certificate expires that cert-manager should try to renew.
+  renewBefore: 48h
+  # -- Specifies how long the certificate should be valid for (its lifetime).
+  duration: 2160h
+  # -- The list of static IPs to include in the certificate, if any.
+  ipAddress: []
+  # -- Include the list of service IP addresses.
+  includeServiceIPs: true
+  # -- The list of static DNS names to include in the certificate.
+  dnsNames:
+    - iag5.example.com
+  # -- Specifies any private key properties
+  privateKey: {} # include all required properties, passed to the template as is
+  # -- Specifies any key store properties
+  keyStores: {} # include all required properties, passed to the template as is
+  # -- Specifies any subject fields required
+  subject:  # include all required properties, passed to the template as is
+    organizations:
+      - "Itential"
+    countries:
+      - "US"
+    localities:
+      - "Atlanta"
+    provinces:
+      - "Georgia"
+    streetAddresses:
+      - "1350 Spring St NW"
+    postalCodes:
+      - "30309"
+
+resources: {}
+
+livenessProbe:
+  enabled: true
+  settings:
+    exec:
+      command:
+        - /bin/sh
+        - -c
+        - pgrep iagctl > /dev/null
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  settings:
+    exec:
+      command:
+        - /bin/sh
+        - -c
+        - pgrep iagctl > /dev/null
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 2
+    successThreshold: 1
+    failureThreshold: 3
+
+# Runner settings depend on the architecture that is being installed and are not always required.
+# For a complete list of configuration options please consult the documentation:
+# https://docs.itential.com/docs/iag5-config-variables
+runnerSettings:
+  # -- The number of runners to use. Set to zero to disable distributed runners.
+  replicaCount: 0
+  runnerTlsSecretName:
+  # Environment variables passed to the runner deployment pods
+  env:
+    # -- Sets the full path to the certificate file that the gateway runner uses when it connects
+    # to a gateway server. This setting is required when GATEWAY_RUNNER_USE_TLS is enabled. If
+    # cert-manager is used then this default value doesn't need to change.
+    GATEWAY_RUNNER_CERTIFICATE_FILE: /etc/ssl/gateway/tls.crt
+    # -- Sets the full path to the private key file the gateway runner uses when it connects to a
+    # gateway server. This setting is required when GATEWAY_RUNNER_USE_TLS is enabled. If
+    # cert-manager is used then this default value doesn't need to change.
+    GATEWAY_RUNNER_PRIVATE_KEY_FILE: /etc/ssl/gateway/tls.key
+    # -- Determines whether or not a gateway runner requires TLS when connecting to a gateway
+    # server.
+    GATEWAY_RUNNER_USE_TLS: true
+
+# At least one server must be defined. This is a sampling of server variables that are available.
+# For a complete list of configuration options please consult the documentation:
+# https://docs.itential.com/docs/iag5-config-variables
+serverSettings:
+  # -- The number of servers to use. At least one server must be defined.
+  replicaCount: 1
+  serverTlsSecretName:
+  # Environment variables passed to the runner deployment pods
+  env:
+    # -- The full path to the certificate file the gateway server uses when it serves connections
+    # to gateway clients. This setting is required when GATEWAY_SERVER_USE_TLS is enabled. If
+    # cert-manager is used then this default value doesn't need to change.
+    GATEWAY_SERVER_CERTIFICATE_FILE: "/etc/ssl/gateway/tls.crt"
+    # -- The full path to the private key file that the gateway server uses when serving connections
+    # to gateway clients. Required when GATEWAY_SERVER_USE_TLS is enabled. If cert-manager is used
+    # then this default value doesn't need to change.
+    GATEWAY_SERVER_PRIVATE_KEY_FILE: "/etc/ssl/gateway/tls.key"
+    # -- Determines whether a gateway server requires TLS when serving connections to gateway
+    # clients.
+    GATEWAY_SERVER_USE_TLS: true
+    # -- Enables or disables the connection to Gateway Manager.
+    GATEWAY_CONNECT_ENABLED: true
+    # -- Specifies the full path to the certificate file used to establish a secure connection to
+    # Gateway Manager.
+    GATEWAY_CONNECT_CERTIFICATE_FILE: "/etc/ssl/gateway/tls.crt"
+    # -- Configures the hostname and port used to connect to Gateway Manager.
+    GATEWAY_CONNECT_HOSTS: "iag5.example.com:8080"
+    # -- Determines whether the gateway verifies TLS certificates when it connects to Itential
+    # Platform. When set to true, the gateway skips TLS certificate verification. We strongly
+    # recommend enabling TLS certificate verification in production environments.
+    GATEWAY_CONNECT_INSECURE_TLS: false
+    # -- Specifies the full path to the private key file that the gateway uses to connect to
+    # Gateway Manager.
+    GATEWAY_CONNECT_PRIVATE_KEY_FILE: "/etc/ssl/gateway/tls.key"
+    # -- Enable this configuration variable when you have multiple all in one or core nodes for a
+    # particular GATEWAY_APPLICATION_CLUSTER_ID. When you enable High Availability (HA), the system
+    # runs in active/standby mode. One server connects to Gateway Manager while the others remain
+    # in standby mode. If the active node goes down, a standby node connects to Gateway Manager and
+    # begins serving requests.
+    GATEWAY_CONNECT_SERVER_HA_ENABLED: false
+    # -- When you set GATEWAY_CONNECT_SERVER_HA_ENABLED to true, use this configuration variable to
+    # designate one node as the primary. When all nodes are online, this node takes the highest
+    # precedence and connects to Gateway Manager. Only one core HA node can connect to Gateway
+    # Manager at a time. If this node loses connection to Gateway Manager or the database, a
+    # standby node takes its place.
+    GATEWAY_CONNECT_SERVER_HA_IS_PRIMARY: false
+
+# Application settings apply to all pods. This is a sampling of what is available.
+# For a complete list of configuration options please consult the documentation:
+# https://docs.itential.com/docs/iag5-config-variables
+applicationSettings:
+  # -- The name of the etcd TLS secret. This is mounted as a volume by the deployment and contains
+  # the Etcd TLS certs and keys.
+  etcdTlsSecretName: etcd-tls-secret
+  # Environment variables passed to all of the deployment pods
+  env:
+    # -- The ID that uniquely identifies your gateway instance or a cluster of related gateway
+    # instances. This is also used to link a gateway controller node to Gateway Manager so that
+    # automations can be sent to a particular cluster.
+    GATEWAY_APPLICATION_CLUSTER_ID: cluster_1
+    # -- When using certificates with TLS, this variable allows you to set the application CA. This
+    # is set on the application level since the CA should be used for all runner, server, and client
+    # implementations.
+    GATEWAY_APPLICATION_CA_CERTIFICATE_FILE: /etc/ssl/gateway/ca.crt
+    # -- Sets the verbosity of the logs that the gateway displays to the console and file logs.
+    # Possible values are: TRACE, DEBUG, INFO, WARN, ERROR, FATAL, DISABLED.
+    GATEWAY_LOG_LEVEL: INFO
+    # -- Sets the backend type for persistent data storage. Itential Automation Gateway (IAG) uses
+    # stores as key-value databases to persistently save objects. IAG supports three types of store
+    # backends: "local", "memory", "etcd", "dynamodb"
+    GATEWAY_STORE_BACKEND: etcd
+    # -- Sets the etcd hosts that the gateway connects to for backend storage. A host entry consists
+    # of an address and port: hostname:port. If there are multiple etcd hosts, enter them as a space
+    # separated list: hostname1:port hostname2:port.
+    GATEWAY_STORE_ETCD_HOSTS: ""
+    # -- Determines whether the gateway uses TLS authentication when it connects to the etcd store
+    # backend.
+    GATEWAY_STORE_ETCD_USE_TLS: false
+    # -- The certificate authority certificate file that the gateway uses when it connects to the
+    # etcd store backend.
+    GATEWAY_STORE_ETCD_CA_CERTIFICATE_FILE: /etc/ssl/etcd/ca.crt
+    # -- The public certificate file that the gateway uses when it connects to the etcd store
+    # backend.
+    GATEWAY_STORE_ETCD_CERTIFICATE_FILE: /etc/ssl/etcd/tls-client.crt
+    # -- Determines the TLS authentication method used when connecting to an etcd store backend and
+    # GATEWAY_STORE_ETCD_USE_TLS is set to true. More information on this variable can be found in
+    # the documentation here: https://docs.itential.com/docs/gateway-store-variables
+    GATEWAY_STORE_ETCD_CLIENT_CERT_AUTH: false
+    # -- The private key file that the gateway uses when it connects to the etcd store backend.
+    GATEWAY_STORE_ETCD_PRIVATE_KEY_FILE: /etc/ssl/etcd/tls-client.key
+    # -- Sets the Amazon DynamoDB table name that the gateway connects to for backend storage. If
+    # you do not specify a table name, IAG uses the default value itential.gateway5.store. To use
+    # this default value, enter itential.gateway5.store for the table name when you create your
+    # DynamoDB table.
+    #GATEWAY_STORE_DYNAMODB_TABLE_NAME: ""
+
+# -- Additional volumes on the output Deployment definition.
+volumes: []
+
+# -- Additional volumeMounts on the output Deployment definition.
+volumeMounts: []
+
+# -- Additional nodeSelectors
+nodeSelector: {}
+
+# -- Additonal tolerations
+tolerations: []
+
+# -- Additional affinities
+affinity: {}

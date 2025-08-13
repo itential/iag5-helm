@@ -1,7 +1,8 @@
 suite: Test issuer.yaml Template
 templates:
   - templates/issuer.yaml
-
+values:
+  - ../tests/test-values.yaml
 tests:
   - it: should not render Issuer when disabled
     set:

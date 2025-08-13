@@ -2,6 +2,8 @@
 suite: test runner deployment
 templates:
   - deployment-runner.yaml
+values:
+  - ../tests/test-values.yaml
 tests:
   - it: should create the correct number of runner deployments
     set:

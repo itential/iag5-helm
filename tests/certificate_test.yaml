@@ -2,6 +2,8 @@
 suite: test certificate template
 templates:
   - certificate.yaml
+values:
+  - ../tests/test-values.yaml
 tests:
   - it: should not create certificate when disabled
     set:
