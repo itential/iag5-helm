@@ -1,4 +1,3 @@
-values-itential.yaml
 values-*.yaml
 values-*.local.yaml
 secrets/
@@ -6,3 +5,4 @@ secrets/
 lab-setup/
 charts/
 *.tgz
+.DS_Store

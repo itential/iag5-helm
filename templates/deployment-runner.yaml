@@ -2,6 +2,28 @@
 {{- if lt $replicaCount 0 }}
 {{- $replicaCount = 0 }}
 {{- end }}
+{{/* Set TLS variables with defaults */}}
+{{- $useTLS := "false" -}}
+{{- $etcdUseTLS := "false" -}}
+{{- $etcdUseClientCertAuth := "false" -}}
+{{- $distributedExecution := "false" -}}
+{{- $haEnabled := "false" -}}
+{{/* Override defaults when conditions are met */}}
+{{- if .Values.useTLS -}}
+  {{- $useTLS = "true" -}}
+{{- end -}}
+{{- if .Values.etcdUseTLS -}}
+  {{- $etcdUseTLS = "true" -}}
+  {{- $etcdUseClientCertAuth = "true" -}}
+{{- end -}}
+{{- if (.Values.runnerSettings).replicaCount -}}
+  {{- $distributedExecution = "true" -}}
+{{- end -}}
+{{- if gt ((.Values.serverSettings).replicaCount | default 0 | int) 1 -}}
+  {{- $haEnabled = "true" -}}
+{{- end -}}
+{{- $runnerSettings := .Values.runnerSettings | default dict -}}
+{{- $runnerEnv := $runnerSettings.env | default dict -}}
 {{- range $i := until $replicaCount }}
 ---
 apiVersion: apps/v1
@@ -28,22 +50,6 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- if $.Values.etcd.enabled }}
-      initContainers:
-        # Wait for the etcd cluster to become available
-        - name: wait-for-etcd-cluster
-          image: bitnami/etcd:latest
-          command:
-          - sh
-          - -c
-          - |
-            echo "Waiting for etcd cluster..."
-            until etcdctl endpoint health --endpoints={{ include "iag5.etcdServiceURL" $ }}; do
-              echo "etcd cluster not ready, waiting..."
-              sleep 5
-            done
-            echo "etcd cluster is ready!"
-      {{- end }}
       {{- with $.Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -59,16 +65,36 @@ spec:
             # Application settings
             - name: GATEWAY_APPLICATION_MODE
               value: "runner"
-          {{- range $key, $value := $.Values.applicationSettings.env }}
+            - name: GATEWAY_STORE_ETCD_USE_TLS
+              value: {{ $etcdUseTLS | quote }}
+            - name: GATEWAY_STORE_ETCD_CLIENT_CERT_AUTH
+              value: {{ $etcdUseClientCertAuth | quote }}
+            {{- if $.Values.etcdUseTLS }}
+            - name: GATEWAY_STORE_ETCD_CA_CERTIFICATE_FILE
+              value: "/etc/ssl/etcd/ca.crt"
+            - name: GATEWAY_STORE_ETCD_CERTIFICATE_FILE
+              value: "/etc/ssl/etcd/tls.crt"
+            - name: GATEWAY_STORE_ETCD_PRIVATE_KEY_FILE
+              value: "/etc/ssl/etcd/tls.key"
+            {{- end }}
+            {{- range $key, $value := $.Values.applicationSettings.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}
-          {{- end }}
+            {{- end }}
             # Runner mode settings
-            {{- if not $.Values.runnerSettings.env.GATEWAY_RUNNER_LISTEN_ADDRESS }}
+            {{- if not $runnerEnv.GATEWAY_RUNNER_LISTEN_ADDRESS }}
             - name: GATEWAY_RUNNER_LISTEN_ADDRESS
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            {{- end }}
+            - name: GATEWAY_RUNNER_USE_TLS
+              value: {{ $useTLS | quote }}
+            {{- if $.Values.useTLS }}
+            - name: GATEWAY_RUNNER_CERTIFICATE_FILE
+              value: "/etc/ssl/gateway/tls.crt"
+            - name: GATEWAY_RUNNER_PRIVATE_KEY_FILE
+              value: "/etc/ssl/gateway/tls.key"
             {{- end }}
             {{/* Announce the service address to match the DNS names in the TLS certs */}}
             - name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
@@ -96,7 +122,7 @@ spec:
           resources:
             {{- toYaml $.Values.resources | nindent 12 }}
           volumeMounts:
-          {{- if $.Values.runnerSettings.env.GATEWAY_RUNNER_USE_TLS }}
+          {{- if $.Values.useTLS }}
             - name: gateway-cert-volume
               mountPath: /etc/ssl/gateway/tls.crt
               subPath: tls.crt
@@ -109,26 +135,35 @@ spec:
               mountPath: /etc/ssl/gateway/ca.crt
               subPath: ca.crt
               readOnly: true
-          {{- end -}}
-          {{- if $.Values.applicationSettings.env.GATEWAY_STORE_ETCD_USE_TLS }}
-            - name: etcd-cert-volume
-              mountPath: /etc/ssl/etcd
+          {{- end }}
+          {{- if $.Values.etcdUseTLS }}
+            - name: etcd-client-certs
+              mountPath: /etc/ssl/etcd/tls.crt
+              subPath: tls.crt
               readOnly: true
-          {{- end -}}
+            - name: etcd-client-certs
+              mountPath: /etc/ssl/etcd/tls.key
+              subPath: tls.key
+              readOnly: true
+            - name: etcd-client-certs
+              mountPath: /etc/ssl/etcd/ca.crt
+              subPath: ca.crt
+              readOnly: true
+          {{- end }}
           {{- with $.Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
       volumes:
-      {{- if $.Values.runnerSettings.env.GATEWAY_RUNNER_USE_TLS }}
+      {{- if $.Values.useTLS }}
         - name: gateway-cert-volume
           secret:
             secretName: {{ include "iag5.fullname" $ }}-tls-secret
-      {{- end -}}
-      {{- if $.Values.applicationSettings.env.GATEWAY_STORE_ETCD_USE_TLS }}
-        - name: etcd-cert-volume
+      {{- end }}
+      {{- if $.Values.etcdUseTLS }}
+        - name: etcd-client-certs
           secret:
-            secretName: {{ $.Values.applicationSettings.etcdTlsSecretName }}
-      {{- end -}}
+            secretName: etcd-client-certs
+      {{- end }}
       {{- with $.Values.volumes }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
