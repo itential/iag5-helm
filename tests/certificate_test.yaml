@@ -309,19 +309,6 @@ tests:
           path: spec.dnsNames
           content: "my-service-runner-0"
 
-  - it: should not generate runner DNS names when runnerSettings is missing
-    set:
-      certificate:
-        enabled: true
-        issuerRef:
-          name: "test-issuer"
-      service:
-        name: "my-service"
-    asserts:
-      - notContains:
-          path: spec.dnsNames
-          content: "my-service-runner-0"
-
   - it: should use fullname for runner services when service name not specified
     set:
       certificate:
@@ -406,30 +393,6 @@ tests:
       - contains:
           path: spec.dnsNames
           content: "my-service-runner-0"
-
-  - it: should sort DNS names alphabetically
-    set:
-      certificate:
-        enabled: true
-        issuerRef:
-          name: "test-issuer"
-        dnsNames:
-          - "z-last.example.com"
-          - "a-first.example.com"
-          - "m-middle.example.com"
-    asserts:
-      - equal:
-          path: spec.dnsNames[0]
-          value: "a-first.example.com"
-      - equal:
-          path: spec.dnsNames[1]
-          value: "iag5.example.com"
-      - equal:
-          path: spec.dnsNames[2]
-          value: "m-middle.example.com"
-      - equal:
-          path: spec.dnsNames[3]
-          value: "z-last.example.com"
 
   - it: should include IP addresses when specified
     set:

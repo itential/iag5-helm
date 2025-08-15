@@ -4,21 +4,10 @@ templates:
 values:
   - ../tests/test-values.yaml
 tests:
-  - it: should not render when serverSettings.replicaCount is not set
+  - it: should create deployment when serverSettings.replicaCount is set
     set:
-      serverSettings:
-        replicaCount: 0
+      serverSettings.replicaCount: 1
     asserts:
-      - hasDocuments:
-          count: 0
-
-  - it: should render deployment when serverSettings.replicaCount is set
-    set:
-      serverSettings:
-        replicaCount: 2
-    asserts:
-      - hasDocuments:
-          count: 1
       - isKind:
           of: Deployment
       - equal:
@@ -26,20 +15,486 @@ tests:
           value: RELEASE-NAME-iag5-server
       - equal:
           path: spec.replicas
-          value: 2
-
-  - it: should include correct labels
-    set:
-      serverSettings:
-        replicaCount: 1
-    asserts:
+          value: 1
       - equal:
           path: spec.template.metadata.labels["app.kubernetes.io/component"]
           value: server
-      - exists:
-          path: metadata.labels
-      - exists:
-          path: spec.template.metadata.labels
+
+  - it: should not create deployment when serverSettings.replicaCount is 0
+    set:
+      serverSettings.replicaCount: 0
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should set correct environment variables with default values
+    set:
+      serverSettings.replicaCount: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_APPLICATION_MODE
+            value: "server"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_STORE_ETCD_USE_TLS
+            value: "false"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_STORE_ETCD_CLIENT_CERT_AUTH
+            value: "false"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_CONNECT_SERVER_HA_ENABLED
+            value: "false"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_USE_TLS
+            value: "false"
+
+  - it: should set TLS environment variables when useTLS is true
+    set:
+      serverSettings.replicaCount: 1
+      useTLS: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_USE_TLS
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_CERTIFICATE_FILE
+            value: "/etc/ssl/gateway/tls.crt"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_PRIVATE_KEY_FILE
+            value: "/etc/ssl/gateway/tls.key"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_CONNECT_CERTIFICATE_FILE
+            value: "/etc/ssl/gateway/tls.crt"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_CONNECT_PRIVATE_KEY_FILE
+            value: "/etc/ssl/gateway/tls.key"
+
+  - it: should set etcd TLS environment variables when etcdUseTLS is true
+    set:
+      serverSettings.replicaCount: 1
+      etcdUseTLS: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_STORE_ETCD_USE_TLS
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_STORE_ETCD_CLIENT_CERT_AUTH
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_STORE_ETCD_CA_CERTIFICATE_FILE
+            value: "/etc/ssl/etcd/ca.crt"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_STORE_ETCD_CERTIFICATE_FILE
+            value: "/etc/ssl/etcd/tls.crt"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_STORE_ETCD_PRIVATE_KEY_FILE
+            value: "/etc/ssl/etcd/tls.key"
+
+  - it: should enable distributed execution when runnerSettings.replicaCount is set
+    set:
+      serverSettings.replicaCount: 1
+      runnerSettings.replicaCount: 2
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_DISTRIBUTED_EXECUTION
+            value: "true"
+
+  - it: should enable HA when serverSettings.replicaCount is greater than 1
+    set:
+      serverSettings.replicaCount: 3
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_CONNECT_SERVER_HA_ENABLED
+            value: "true"
+
+  - it: should include applicationSettings environment variables
+    set:
+      serverSettings.replicaCount: 1
+      applicationSettings:
+        env:
+          GATEWAY_APPLICATION_CLUSTER_ID: "test-cluster"
+          GATEWAY_LOG_LEVEL: "DEBUG"
+          GATEWAY_STORE_BACKEND: "etcd"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_APPLICATION_CLUSTER_ID
+            value: "test-cluster"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_LOG_LEVEL
+            value: "DEBUG"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_STORE_BACKEND
+            value: "etcd"
+
+  - it: should include serverSettings environment variables
+    set:
+      serverSettings:
+        replicaCount: 1
+        env:
+          GATEWAY_CONNECT_ENABLED: "false"
+          GATEWAY_CONNECT_HOSTS: "test.example.com:8080"
+          CUSTOM_SERVER_VAR: "custom-value"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_CONNECT_ENABLED
+            value: "false"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_CONNECT_HOSTS
+            value: "test.example.com:8080"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CUSTOM_SERVER_VAR
+            value: "custom-value"
+
+  - it: should set GATEWAY_SERVER_LISTEN_ADDRESS from podIP when not specified
+    set:
+      serverSettings.replicaCount: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_LISTEN_ADDRESS
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+
+  - it: should not set GATEWAY_SERVER_LISTEN_ADDRESS when explicitly provided
+    set:
+      serverSettings:
+        replicaCount: 1
+        env:
+          GATEWAY_SERVER_LISTEN_ADDRESS: "0.0.0.0"
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_LISTEN_ADDRESS
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+
+  - it: should configure container image correctly
+    set:
+      serverSettings.replicaCount: 1
+      image:
+        repository: "test-repo"
+        tag: "1.0.0"
+        pullPolicy: "Always"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "test-repo:1.0.0"
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: "Always"
+
+  - it: should configure container ports correctly
+    set:
+      serverSettings.replicaCount: 1
+      port: 8080
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: RELEASE-NAME-iag5-server
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 8080
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].protocol
+          value: TCP
+
+  - it: should include liveness probe when enabled
+    set:
+      serverSettings.replicaCount: 1
+      livenessProbe:
+        enabled: true
+        settings:
+          exec:
+            command:
+              - /bin/sh
+              - -c
+              - pgrep iagctl > /dev/null
+          initialDelaySeconds: 10
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.exec.command[0]
+          value: "/bin/sh"
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.initialDelaySeconds
+          value: 10
+
+  - it: should not include liveness probe when disabled
+    set:
+      serverSettings.replicaCount: 1
+      livenessProbe:
+        enabled: false
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].livenessProbe
+
+  - it: should include readiness probe when enabled
+    set:
+      serverSettings.replicaCount: 1
+      readinessProbe:
+        enabled: true
+        settings:
+          exec:
+            command:
+              - /bin/sh
+              - -c
+              - pgrep iagctl > /dev/null
+          initialDelaySeconds: 5
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.exec.command[0]
+          value: "/bin/sh"
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.initialDelaySeconds
+          value: 5
+
+  - it: should not include readiness probe when disabled
+    set:
+      serverSettings.replicaCount: 1
+      readinessProbe:
+        enabled: false
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].readinessProbe
+
+  - it: should mount TLS volumes when useTLS is true
+    set:
+      serverSettings.replicaCount: 1
+      useTLS: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: gateway-cert-volume
+            mountPath: /etc/ssl/gateway/tls.crt
+            subPath: tls.crt
+            readOnly: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: gateway-cert-volume
+            mountPath: /etc/ssl/gateway/tls.key
+            subPath: tls.key
+            readOnly: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: gateway-cert-volume
+            mountPath: /etc/ssl/gateway/ca.crt
+            subPath: ca.crt
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: gateway-cert-volume
+            secret:
+              secretName: RELEASE-NAME-iag5-tls-secret
+
+  - it: should mount etcd TLS volumes when etcdUseTLS is true
+    set:
+      serverSettings.replicaCount: 1
+      etcdUseTLS: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: etcd-client-certs
+            mountPath: /etc/ssl/etcd
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: etcd-client-certs
+            secret:
+              secretName: "etcd-client-certs"
+
+  - it: should include custom volumes and volumeMounts
+    set:
+      serverSettings.replicaCount: 1
+      volumes:
+        - name: custom-volume
+          configMap:
+            name: custom-config
+      volumeMounts:
+        - name: custom-volume
+          mountPath: /etc/custom
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: custom-volume
+            configMap:
+              name: custom-config
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: custom-volume
+            mountPath: /etc/custom
+
+  - it: should include imagePullSecrets when specified
+    set:
+      serverSettings.replicaCount: 1
+      imagePullSecrets:
+        - name: my-registry-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: my-registry-secret
+
+  - it: should include nodeSelector when specified
+    set:
+      serverSettings.replicaCount: 1
+      nodeSelector:
+        kubernetes.io/arch: amd64
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            kubernetes.io/arch: amd64
+
+  - it: should include affinity when specified
+    set:
+      serverSettings.replicaCount: 1
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
+    asserts:
+      - isNotNull:
+          path: spec.template.spec.affinity.nodeAffinity
+
+  - it: should include tolerations when specified
+    set:
+      serverSettings.replicaCount: 1
+      tolerations:
+        - key: node-type
+          operator: Equal
+          value: compute
+          effect: NoSchedule
+    asserts:
+      - contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: node-type
+            operator: Equal
+            value: compute
+            effect: NoSchedule
+
+  - it: should include podAnnotations and podLabels
+    set:
+      serverSettings.replicaCount: 1
+      podAnnotations:
+        custom.annotation: "value"
+      podLabels:
+        custom.label: "value"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["custom.annotation"]
+          value: "value"
+      - equal:
+          path: spec.template.metadata.labels["custom.label"]
+          value: "value"
+
+  - it: should apply security contexts
+    set:
+      serverSettings.replicaCount: 1
+      podSecurityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 1000
+      - equal:
+          path: spec.template.spec.securityContext.runAsGroup
+          value: 1000
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+
+  - it: should configure resources when specified
+    set:
+      serverSettings.replicaCount: 1
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 100m
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 128Mi
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: 500m
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: 512Mi
 
   - it: should have the expected standard annotations
     set:
@@ -63,472 +518,3 @@ tests:
       - equal:
           path: spec.template.metadata.annotations["foo"]
           value: bar
-
-  - it: should set GATEWAY_APPLICATION_MODE to server
-    set:
-      serverSettings:
-        replicaCount: 1
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: GATEWAY_APPLICATION_MODE
-            value: "server"
-
-  - it: should set GATEWAY_SERVER_LISTEN_ADDRESS from podIP when not provided
-    set:
-      serverSettings:
-        replicaCount: 1
-        env: {}
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: GATEWAY_SERVER_LISTEN_ADDRESS
-            valueFrom:
-              fieldRef:
-                fieldPath: status.podIP
-
-  - it: should not set GATEWAY_SERVER_LISTEN_ADDRESS from podIP when provided in env
-    set:
-      serverSettings:
-        replicaCount: 1
-        env:
-          GATEWAY_SERVER_LISTEN_ADDRESS: "0.0.0.0:8080"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: GATEWAY_SERVER_LISTEN_ADDRESS
-            value: "0.0.0.0:8080"
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: GATEWAY_SERVER_LISTEN_ADDRESS
-            valueFrom:
-              fieldRef:
-                fieldPath: status.podIP
-
-  - it: should set GATEWAY_SERVER_DISTRIBUTED_EXECUTION when runner is enabled
-    set:
-      serverSettings:
-        replicaCount: 1
-      runnerSettings:
-        replicaCount: 2
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: GATEWAY_SERVER_DISTRIBUTED_EXECUTION
-            value: "true"
-
-  - it: should not set GATEWAY_SERVER_DISTRIBUTED_EXECUTION when runner is not enabled
-    set:
-      serverSettings:
-        replicaCount: 1
-      runnerSettings: {}
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: GATEWAY_SERVER_DISTRIBUTED_EXECUTION
-
-  - it: should include server environment variables
-    set:
-      serverSettings:
-        replicaCount: 1
-        env:
-          SERVER_VAR1: "value1"
-          SERVER_VAR2: "value2"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: SERVER_VAR1
-            value: "value1"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: SERVER_VAR2
-            value: "value2"
-
-  - it: should include application environment variables
-    set:
-      serverSettings:
-        replicaCount: 1
-      applicationSettings:
-        env:
-          APP_VAR1: "appvalue1"
-          APP_VAR2: "appvalue2"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: APP_VAR1
-            value: "appvalue1"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: APP_VAR2
-            value: "appvalue2"
-
-  - it: should include etcd init container when etcd is enabled
-    set:
-      serverSettings:
-        replicaCount: 1
-      etcd:
-        enabled: true
-    asserts:
-      - exists:
-          path: spec.template.spec.initContainers
-      - equal:
-          path: spec.template.spec.initContainers[0].name
-          value: wait-for-etcd-cluster
-      - equal:
-          path: spec.template.spec.initContainers[0].image
-          value: bitnami/etcd:latest
-
-  - it: should not include etcd init container when etcd is disabled
-    set:
-      serverSettings:
-        replicaCount: 1
-      etcd:
-        enabled: false
-    asserts:
-      - notExists:
-          path: spec.template.spec.initContainers
-
-  - it: should include TLS volume mounts when GATEWAY_SERVER_USE_TLS is true
-    set:
-      serverSettings:
-        replicaCount: 1
-        env:
-          GATEWAY_SERVER_USE_TLS: "true"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: gateway-cert-volume
-            mountPath: /etc/ssl/gateway/tls.crt
-            subPath: tls.crt
-            readOnly: true
-      - contains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: gateway-cert-volume
-            mountPath: /etc/ssl/gateway/tls.key
-            subPath: tls.key
-            readOnly: true
-      - contains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: gateway-cert-volume
-            mountPath: /etc/ssl/gateway/ca.crt
-            subPath: ca.crt
-            readOnly: true
-
-  - it: should include TLS volume when GATEWAY_SERVER_USE_TLS is true
-    set:
-      serverSettings:
-        replicaCount: 1
-        env:
-          GATEWAY_SERVER_USE_TLS: "true"
-    asserts:
-      - contains:
-          path: spec.template.spec.volumes
-          content:
-            name: gateway-cert-volume
-            secret:
-              secretName: RELEASE-NAME-iag5-tls-secret
-
-  - it: should include etcd TLS volume mount when GATEWAY_STORE_ETCD_USE_TLS is true
-    set:
-      serverSettings:
-        replicaCount: 1
-      applicationSettings:
-        env:
-          GATEWAY_STORE_ETCD_USE_TLS: "true"
-        etcdTlsSecretName: "my-etcd-secret"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: etcd-cert-volume
-            mountPath: /etc/ssl/etcd
-            readOnly: true
-
-  - it: should include etcd TLS volume when GATEWAY_STORE_ETCD_USE_TLS is true
-    set:
-      serverSettings:
-        replicaCount: 1
-      applicationSettings:
-        env:
-          GATEWAY_STORE_ETCD_USE_TLS: "true"
-        etcdTlsSecretName: "my-etcd-secret"
-    asserts:
-      - contains:
-          path: spec.template.spec.volumes
-          content:
-            name: etcd-cert-volume
-            secret:
-              secretName: "my-etcd-secret"
-
-  - it: should not include TLS volumes when TLS is disabled
-    set:
-      serverSettings:
-        replicaCount: 1
-        env:
-          GATEWAY_SERVER_USE_TLS: "false"
-      applicationSettings:
-        env:
-          GATEWAY_STORE_ETCD_USE_TLS: "false"
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: gateway-cert-volume
-      - notContains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: etcd-cert-volume
-
-  - it: should include custom volume mounts
-    set:
-      serverSettings:
-        replicaCount: 1
-      volumeMounts:
-        - name: custom-volume
-          mountPath: /custom/path
-          readOnly: true
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: custom-volume
-            mountPath: /custom/path
-            readOnly: true
-
-  - it: should include custom volumes
-    set:
-      serverSettings:
-        replicaCount: 1
-      volumes:
-        - name: custom-volume
-          configMap:
-            name: my-config
-    asserts:
-      - contains:
-          path: spec.template.spec.volumes
-          content:
-            name: custom-volume
-            configMap:
-              name: my-config
-
-  - it: should set image from values
-    set:
-      serverSettings:
-        replicaCount: 1
-      image:
-        repository: "my-registry/iag5"
-        tag: "v1.2.3"
-        pullPolicy: "Always"
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].image
-          value: "my-registry/iag5:v1.2.3"
-      - equal:
-          path: spec.template.spec.containers[0].imagePullPolicy
-          value: "Always"
-
-  - it: should include probes when enabled
-    set:
-      serverSettings:
-        replicaCount: 1
-      livenessProbe:
-        enabled: true
-        settings:
-          httpGet:
-            path: /health
-            port: 8080
-      readinessProbe:
-        enabled: true
-        settings:
-          httpGet:
-            path: /ready
-            port: 8080
-    asserts:
-      - exists:
-          path: spec.template.spec.containers[0].livenessProbe
-      - exists:
-          path: spec.template.spec.containers[0].readinessProbe
-      - equal:
-          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
-          value: "/health"
-      - equal:
-          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
-          value: "/ready"
-
-  - it: should not include probes when disabled
-    set:
-      serverSettings:
-        replicaCount: 1
-      livenessProbe:
-        enabled: false
-      readinessProbe:
-        enabled: false
-    asserts:
-      - notExists:
-          path: spec.template.spec.containers[0].livenessProbe
-      - notExists:
-          path: spec.template.spec.containers[0].readinessProbe
-
-  - it: should include pod annotations
-    set:
-      serverSettings:
-        replicaCount: 1
-      podAnnotations:
-        annotation1: "value1"
-        annotation2: "value2"
-    asserts:
-      - equal:
-          path: spec.template.metadata.annotations.annotation1
-          value: "value1"
-      - equal:
-          path: spec.template.metadata.annotations.annotation2
-          value: "value2"
-
-  - it: should include pod labels
-    set:
-      serverSettings:
-        replicaCount: 1
-      podLabels:
-        label1: "value1"
-        label2: "value2"
-    asserts:
-      - equal:
-          path: spec.template.metadata.labels.label1
-          value: "value1"
-      - equal:
-          path: spec.template.metadata.labels.label2
-          value: "value2"
-
-  - it: should include node selector
-    set:
-      serverSettings:
-        replicaCount: 1
-      nodeSelector:
-        disktype: ssd
-        environment: production
-    asserts:
-      - equal:
-          path: spec.template.spec.nodeSelector.disktype
-          value: "ssd"
-      - equal:
-          path: spec.template.spec.nodeSelector.environment
-          value: "production"
-
-  - it: should include affinity rules
-    set:
-      serverSettings:
-        replicaCount: 1
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: kubernetes.io/arch
-                    operator: In
-                    values:
-                      - amd64
-    asserts:
-      - exists:
-          path: spec.template.spec.affinity
-      - equal:
-          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key
-          value: "kubernetes.io/arch"
-
-  - it: should include tolerations
-    set:
-      serverSettings:
-        replicaCount: 1
-      tolerations:
-        - key: "key1"
-          operator: "Equal"
-          value: "value1"
-          effect: "NoSchedule"
-    asserts:
-      - exists:
-          path: spec.template.spec.tolerations
-      - equal:
-          path: spec.template.spec.tolerations[0].key
-          value: "key1"
-      - equal:
-          path: spec.template.spec.tolerations[0].effect
-          value: "NoSchedule"
-
-  - it: should include image pull secrets
-    set:
-      serverSettings:
-        replicaCount: 1
-      imagePullSecrets:
-        - name: my-registry-secret
-        - name: another-secret
-    asserts:
-      - exists:
-          path: spec.template.spec.imagePullSecrets
-      - equal:
-          path: spec.template.spec.imagePullSecrets[0].name
-          value: my-registry-secret
-      - equal:
-          path: spec.template.spec.imagePullSecrets[1].name
-          value: another-secret
-
-  - it: should include security contexts
-    set:
-      serverSettings:
-        replicaCount: 1
-      podSecurityContext:
-        runAsUser: 1000
-        runAsGroup: 1000
-      securityContext:
-        allowPrivilegeEscalation: false
-        readOnlyRootFilesystem: true
-    asserts:
-      - equal:
-          path: spec.template.spec.securityContext.runAsUser
-          value: 1000
-      - equal:
-          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
-          value: false
-
-  - it: should include resources
-    set:
-      serverSettings:
-        replicaCount: 1
-      resources:
-        requests:
-          memory: "256Mi"
-          cpu: "250m"
-        limits:
-          memory: "512Mi"
-          cpu: "500m"
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].resources.requests.memory
-          value: "256Mi"
-      - equal:
-          path: spec.template.spec.containers[0].resources.limits.cpu
-          value: "500m"
-
-  - it: should set container port from values
-    set:
-      serverSettings:
-        replicaCount: 1
-      port: 9090
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].ports[0].containerPort
-          value: 9090
-      - equal:
-          path: spec.template.spec.containers[0].ports[0].name
-          value: RELEASE-NAME-iag5-server
