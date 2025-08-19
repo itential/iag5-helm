@@ -314,22 +314,7 @@ tests:
           path: spec.template.spec.containers[0].volumeMounts
           content:
             name: gateway-cert-volume
-            mountPath: /etc/ssl/gateway/tls.crt
-            subPath: tls.crt
-            readOnly: true
-      - contains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: gateway-cert-volume
-            mountPath: /etc/ssl/gateway/tls.key
-            subPath: tls.key
-            readOnly: true
-      - contains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: gateway-cert-volume
-            mountPath: /etc/ssl/gateway/ca.crt
-            subPath: ca.crt
+            mountPath: /etc/ssl/gateway
             readOnly: true
       - contains:
           path: spec.template.spec.volumes

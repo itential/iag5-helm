@@ -335,22 +335,7 @@ tests:
           path: spec.template.spec.containers[0].volumeMounts
           content:
             name: gateway-cert-volume
-            mountPath: /etc/ssl/gateway/tls.crt
-            subPath: tls.crt
-            readOnly: true
-      - contains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: gateway-cert-volume
-            mountPath: /etc/ssl/gateway/tls.key
-            subPath: tls.key
-            readOnly: true
-      - contains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: gateway-cert-volume
-            mountPath: /etc/ssl/gateway/ca.crt
-            subPath: ca.crt
+            mountPath: /etc/ssl/gateway
             readOnly: true
       - contains:
           path: spec.template.spec.volumes
@@ -368,22 +353,7 @@ tests:
           path: spec.template.spec.containers[0].volumeMounts
           content:
             name: etcd-client-certs
-            mountPath: /etc/ssl/etcd/tls.crt
-            subPath: tls.crt
-            readOnly: true
-      - contains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: etcd-client-certs
-            mountPath: /etc/ssl/etcd/tls.key
-            subPath: tls.key
-            readOnly: true
-      - contains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: etcd-client-certs
-            mountPath: /etc/ssl/etcd/ca.crt
-            subPath: ca.crt
+            mountPath: /etc/ssl/etcd
             readOnly: true
       - contains:
           path: spec.template.spec.volumes
@@ -588,16 +558,14 @@ tests:
           path: spec.template.spec.containers[0].volumeMounts
           content:
             name: gateway-cert-volume
-            mountPath: /etc/ssl/gateway/tls.crt
-            subPath: tls.crt
+            mountPath: /etc/ssl/gateway
             readOnly: true
           documentIndex: 0
       - contains:
           path: spec.template.spec.containers[0].volumeMounts
           content:
             name: etcd-client-certs
-            mountPath: /etc/ssl/etcd/tls.crt
-            subPath: tls.crt
+            mountPath: /etc/ssl/etcd
             readOnly: true
           documentIndex: 1
 
