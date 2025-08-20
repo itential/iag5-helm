@@ -94,23 +94,31 @@ readinessProbe:
 
 runnerSettings:
   replicaCount: 3
-  env:
+  env: {}
 
 serverSettings:
-  replicaCount: 1
-  env:
-    GATEWAY_CONNECT_ENABLED: true
-    GATEWAY_CONNECT_HOSTS: "iag5.example.com:8080"
-    GATEWAY_CONNECT_INSECURE_TLS: false
+  replicaCount: 2
+  connectEnabled: true
+  connectHosts: "test.example.com:8080"
+  connectInsecureEnabled: false
+  env: {}
 
 applicationSettings:
-  env:
-    GATEWAY_APPLICATION_CLUSTER_ID: cluster_1
-    GATEWAY_LOG_LEVEL: INFO
-    GATEWAY_STORE_BACKEND: etcd
-    GATEWAY_STORE_ETCD_HOSTS: ""
-    GATEWAY_STORE_ETCD_USE_TLS: false
-    #GATEWAY_STORE_DYNAMODB_TABLE_NAME: ""
+  etcdTlsSecretName: etcd-tls-secret
+  clusterId: cluster_1
+  logLevel: DEBUG
+  storeBackend: etcd # "etcd", "memory", "dynamodb"
+
+  # Etcd settings
+  etcdUseTLS: false
+  etcdUseClientCertAuth: false
+  etcdHosts: "etcd.default.svc.cluster.local:2379"
+
+  # DynamoDB settings
+  dynamodbTableName: "test-table-name"
+
+  # Any other environment variables can be passed through
+  env: {}
 
 volumes: []
 

@@ -166,7 +166,7 @@ tests:
   - it: should set etcd TLS environment variables when etcdUseTLS is true
     set:
       runnerSettings.replicaCount: 1
-      etcdUseTLS: true
+      applicationSettings.etcdUseTLS: true
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
@@ -177,7 +177,7 @@ tests:
           path: spec.template.spec.containers[0].env
           content:
             name: GATEWAY_STORE_ETCD_CLIENT_CERT_AUTH
-            value: "true"
+            value: "false"
       - contains:
           path: spec.template.spec.containers[0].env
           content:
@@ -347,7 +347,7 @@ tests:
   - it: should mount etcd TLS volumes when etcdUseTLS is true
     set:
       runnerSettings.replicaCount: 1
-      etcdUseTLS: true
+      applicationSettings.etcdUseTLS: true
     asserts:
       - contains:
           path: spec.template.spec.containers[0].volumeMounts
@@ -519,13 +519,12 @@ tests:
     set:
       runnerSettings.replicaCount: 2
       useTLS: true
-      etcdUseTLS: true
+      applicationSettings.etcdUseTLS: true
       runnerSettings:
         env:
           CUSTOM_VAR: "test"
       applicationSettings:
-        env:
-          GATEWAY_LOG_LEVEL: "DEBUG"
+        logLevel: "DEBUG"
     asserts:
       - hasDocuments:
           count: 2

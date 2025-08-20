@@ -3,19 +3,9 @@
 {{- $replicaCount = 0 }}
 {{- end }}
 {{/* Set TLS variables with defaults */}}
-{{- $useTLS := "false" -}}
-{{- $etcdUseTLS := "false" -}}
-{{- $etcdUseClientCertAuth := "false" -}}
 {{- $distributedExecution := "false" -}}
 {{- $haEnabled := "false" -}}
 {{/* Override defaults when conditions are met */}}
-{{- if .Values.useTLS -}}
-  {{- $useTLS = "true" -}}
-{{- end -}}
-{{- if .Values.etcdUseTLS -}}
-  {{- $etcdUseTLS = "true" -}}
-  {{- $etcdUseClientCertAuth = "true" -}}
-{{- end -}}
 {{- if (.Values.runnerSettings).replicaCount -}}
   {{- $distributedExecution = "true" -}}
 {{- end -}}
@@ -67,11 +57,20 @@ spec:
               value: "runner"
             - name: GATEWAY_SECRETS_ENCRYPT_KEY_FILE
               value: "/etc/gateway/keys/encryption.key"
+            - name: GATEWAY_APPLICATION_CLUSTER_ID
+              value: {{ $.Values.applicationSettings.clusterId | quote }}
+            - name: GATEWAY_LOG_LEVEL
+              value: {{ $.Values.applicationSettings.logLevel | default "INFO" | quote }}
+            - name: GATEWAY_STORE_BACKEND
+              value: {{ $.Values.applicationSettings.storeBackend | default "memory" | quote }}
+            {{- if eq $.Values.applicationSettings.storeBackend "etcd" }}
+            - name: GATEWAY_STORE_ETCD_HOSTS
+              value: {{ $.Values.applicationSettings.etcdHosts | quote }}
             - name: GATEWAY_STORE_ETCD_USE_TLS
-              value: {{ $etcdUseTLS | quote }}
+              value: {{ $.Values.applicationSettings.etcdUseTLS | default "false" | quote }}
             - name: GATEWAY_STORE_ETCD_CLIENT_CERT_AUTH
-              value: {{ $etcdUseClientCertAuth | quote }}
-            {{- if $.Values.etcdUseTLS }}
+              value: {{ $.Values.applicationSettings.etcdUseClientCertAuth | default "false" | quote }}
+            {{- if $.Values.applicationSettings.etcdUseTLS }}
             - name: GATEWAY_STORE_ETCD_CA_CERTIFICATE_FILE
               value: "/etc/ssl/etcd/ca.crt"
             - name: GATEWAY_STORE_ETCD_CERTIFICATE_FILE
@@ -79,20 +78,27 @@ spec:
             - name: GATEWAY_STORE_ETCD_PRIVATE_KEY_FILE
               value: "/etc/ssl/etcd/tls.key"
             {{- end }}
+            {{- end }}
+            {{- if eq $.Values.applicationSettings.storeBackend "dynamodb" }}
+            - name: GATEWAY_STORE_DYNAMODB_TABLE_NAME
+              value: {{ $.Values.applicationSettings.dynamodbTableName | quote }}
+            {{- end }}
             {{- range $key, $value := $.Values.applicationSettings.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
             # Runner mode settings
-            {{- if not $runnerEnv.GATEWAY_RUNNER_LISTEN_ADDRESS }}
+            {{- if not $.Values.runnerSettings.env.GATEWAY_RUNNER_LISTEN_ADDRESS }}
             - name: GATEWAY_RUNNER_LISTEN_ADDRESS
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
             {{- end }}
             - name: GATEWAY_RUNNER_USE_TLS
-              value: {{ $useTLS | quote }}
+              value: {{ $.Values.useTLS | default "false" | quote }}
             {{- if $.Values.useTLS }}
+            - name: GATEWAY_APPLICATION_CA_CERTIFICATE_FILE
+              value: "/etc/ssl/gateway/ca.crt"
             - name: GATEWAY_RUNNER_CERTIFICATE_FILE
               value: "/etc/ssl/gateway/tls.crt"
             - name: GATEWAY_RUNNER_PRIVATE_KEY_FILE
@@ -101,9 +107,14 @@ spec:
             {{/* Announce the service address to match the DNS names in the TLS certs */}}
             - name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
               value: "{{ $.Values.service.name }}-runner-{{ $i }}.{{ $.Release.Namespace }}.svc.cluster.local"
-          {{- range $key, $value := $.Values.runnerSettings.env }}
+            {{- range $key, $value := $.Values.runnerSettings.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}
+            {{- end }}
+          {{- if eq $.Values.applicationSettings.storeBackend "dynamodb" }}
+          envFrom:
+            - secretRef:
+                name: dynamodb-aws-secrets
           {{- end }}
           securityContext:
             {{- toYaml $.Values.securityContext | nindent 12 }}
@@ -133,7 +144,7 @@ spec:
               mountPath: /etc/ssl/gateway
               readOnly: true
           {{- end }}
-          {{- if $.Values.etcdUseTLS }}
+          {{- if $.Values.applicationSettings.etcdUseTLS }}
             - name: etcd-client-certs
               mountPath: /etc/ssl/etcd
               readOnly: true
@@ -150,7 +161,7 @@ spec:
           secret:
             secretName: {{ include "iag5.fullname" $ }}-tls-secret
       {{- end }}
-      {{- if $.Values.etcdUseTLS }}
+      {{- if $.Values.applicationSettings.etcdUseTLS }}
         - name: etcd-client-certs
           secret:
             secretName: etcd-client-certs
