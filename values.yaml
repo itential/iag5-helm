@@ -11,9 +11,6 @@ port: 50051
 # -- Turn on TLS connectivity between all the members. All on or all off.
 useTLS: true
 
-# -- Turn on TLS connectivity between server, runners and Etcd.
-etcdUseTLS: true
-
 # Set to false to disable etcd installation. Below is a sample Etcd configuration if using the
 # included dependency.
 etcd:
@@ -195,9 +192,9 @@ readinessProbe:
 runnerSettings:
   # -- The number of runners to use. Set to zero to disable distributed runners.
   replicaCount: 0
-  runnerTlsSecretName:
   # Environment variables passed to the runner deployment pods
-  env:
+  env: {}
+    # VAR_NAME: VAR_VALUE
 
 # At least one server must be defined. This is a sampling of server variables that are available.
 # For a complete list of configuration options please consult the documentation:
@@ -205,17 +202,17 @@ runnerSettings:
 serverSettings:
   # -- The number of servers to use. At least one server must be defined.
   replicaCount: 1
-  serverTlsSecretName:
+  # -- Enables or disables the connection to Gateway Manager.
+  connectEnabled: true
+  # -- Configures the hostname and port used to connect to Gateway Manager.
+  connectHosts: "itential.example.com:8080"
+  # -- Determines whether the gateway verifies TLS certificates when it connects to Itential
+  # Platform. When set to true, the gateway skips TLS certificate verification. We strongly
+  # recommend enabling TLS certificate verification in production environments.
+  connectInsecureEnabled: false
   # Environment variables passed to the runner deployment pods
-  env:
-    # -- Enables or disables the connection to Gateway Manager.
-    GATEWAY_CONNECT_ENABLED: true
-    # -- Configures the hostname and port used to connect to Gateway Manager.
-    GATEWAY_CONNECT_HOSTS: "iag5.example.com:8080"
-    # -- Determines whether the gateway verifies TLS certificates when it connects to Itential
-    # Platform. When set to true, the gateway skips TLS certificate verification. We strongly
-    # recommend enabling TLS certificate verification in production environments.
-    GATEWAY_CONNECT_INSECURE_TLS: false
+  env: {}
+    # VAR_NAME: VAR_VALUE
 
 # Application settings apply to all pods. This is a sampling of what is available.
 # For a complete list of configuration options please consult the documentation:
@@ -224,30 +221,35 @@ applicationSettings:
   # -- The name of the etcd TLS secret. This is mounted as a volume by the deployment and contains
   # the Etcd TLS certs and keys.
   etcdTlsSecretName: etcd-tls-secret
+  # -- The ID that uniquely identifies your gateway instance or a cluster of related gateway
+  # instances. This is also used to link a gateway controller node to Gateway Manager so that
+  # automations can be sent to a particular cluster.
+  clusterId: cluster_1
+  # -- Sets the verbosity of the logs that the gateway displays to the console and file logs.
+  # Possible values are: "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "DISABLED".
+  logLevel: DEBUG
+  # -- Sets the backend type for persistent data storage. Itential Automation Gateway (IAG) uses
+  # stores as key-value databases to persistently save objects. IAG supports three types of store
+  # backends: "local", "memory", "etcd", "dynamodb"
+  storeBackend: memory # "etcd", "memory", "dynamodb"
+
+  # Etcd settings
+  # -- Enable TLS when connecting the Etcd.
+  etcdUseTLS: true
+  # -- Enable certificate validation when connecting to Etcd.
+  etcdUseClientCertAuth: true
+  # -- Sets the etcd hosts that the gateway connects to for backend storage. A host entry consists
+  # of an address and port: hostname:port. If there are multiple etcd hosts, enter them as a space
+  # separated list: hostname1:port hostname2:port.
+  etcdHosts: "etcd.default.svc.cluster.local:2379"
+
+  # DynamoDB settings
+  # -- The DynamoDB table name when storeBackend is set to "dynamodb"
+  dynamodbTableName: ""
+
   # Environment variables passed to all of the deployment pods
-  env:
-    # -- The ID that uniquely identifies your gateway instance or a cluster of related gateway
-    # instances. This is also used to link a gateway controller node to Gateway Manager so that
-    # automations can be sent to a particular cluster.
-    GATEWAY_APPLICATION_CLUSTER_ID: cluster_1
-    # -- When using certificates with TLS, this variable allows you to set the application CA. This
-    # is set on the application level since the CA should be used for all runner, server, and client
-    # implementations.
-    GATEWAY_APPLICATION_CA_CERTIFICATE_FILE: /etc/ssl/gateway/ca.crt
-    # -- Sets the verbosity of the logs that the gateway displays to the console and file logs.
-    # Possible values are: TRACE, DEBUG, INFO, WARN, ERROR, FATAL, DISABLED.
-    GATEWAY_LOG_LEVEL: INFO
-    # -- Sets the backend type for persistent data storage. Itential Automation Gateway (IAG) uses
-    # stores as key-value databases to persistently save objects. IAG supports three types of store
-    # backends: "local", "memory", "etcd", "dynamodb"
-    GATEWAY_STORE_BACKEND: etcd
-    # -- Sets the etcd hosts that the gateway connects to for backend storage. A host entry consists
-    # of an address and port: hostname:port. If there are multiple etcd hosts, enter them as a space
-    # separated list: hostname1:port hostname2:port.
-    GATEWAY_STORE_ETCD_HOSTS: ""
-    # -- The certificate authority certificate file that the gateway uses when it connects to the
-    # etcd store backend.
-    #GATEWAY_STORE_DYNAMODB_TABLE_NAME: ""
+  env: {}
+    # VAR_NAME: VAR_VALUE
 
 # -- Additional volumes on the output Deployment definition.
 volumes: []
