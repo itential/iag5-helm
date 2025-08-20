@@ -22,6 +22,30 @@ For information about installing a client please visit the IAG5 repo.
 | https://charts.jetstack.io | cert-manager | 1.12.3 |
 | https://kubernetes-sigs.github.io/external-dns/ | external-dns | 1.17.0 |
 
+#### Secrets
+
+The chart assumes the following secrets, they are not included in the Chart.
+
+##### imagePullSecrets
+
+This is the secret that will pull the image from the Itential ECR. Name to be determined by the user
+ of the chart and that name must be provided in the values file (`imagePullSecrets[0].name`).
+
+##### itential-ca
+
+This secret represents the CA used by cert-manager to derive all the TLS certificates. Name to be
+provided by the user of the chart in the values file (`issuer.caSecretName`) if using cert-manager.
+
+##### itential-gateway-secrets
+
+This secret contains several sensitive values that the application may use. They are loaded into the
+pod as environment variables. Some are optional and depend on your implementation. The creation of
+this secret is left out of the chart to allow for flexibility with its creation.
+
+| Secret Key | Description | Required? |
+|:-----------|:------------|:----------|
+| encryptionKey | A private key used to encrypt and decrypt secrets within IAG5, a base 64 256 character string is recommended. | true |
+
 #### Certificates
 
 The chart will require a Certificate Authority to be added to the Kubernetes environment. This is

@@ -65,6 +65,8 @@ spec:
             # Application settings
             - name: GATEWAY_APPLICATION_MODE
               value: "runner"
+            - name: GATEWAY_SECRETS_ENCRYPT_KEY_FILE
+              value: "/etc/gateway/keys/encryption.key"
             - name: GATEWAY_STORE_ETCD_USE_TLS
               value: {{ $etcdUseTLS | quote }}
             - name: GATEWAY_STORE_ETCD_CLIENT_CERT_AUTH
@@ -122,38 +124,27 @@ spec:
           resources:
             {{- toYaml $.Values.resources | nindent 12 }}
           volumeMounts:
+            - name: gateway-secrets-volume
+              mountPath: /etc/gateway/keys/encryption.key
+              subPath: gatewayEncryptionKey
+              readOnly: true
           {{- if $.Values.useTLS }}
             - name: gateway-cert-volume
-              mountPath: /etc/ssl/gateway/tls.crt
-              subPath: tls.crt
-              readOnly: true
-            - name: gateway-cert-volume
-              mountPath: /etc/ssl/gateway/tls.key
-              subPath: tls.key
-              readOnly: true
-            - name: gateway-cert-volume
-              mountPath: /etc/ssl/gateway/ca.crt
-              subPath: ca.crt
+              mountPath: /etc/ssl/gateway
               readOnly: true
           {{- end }}
           {{- if $.Values.etcdUseTLS }}
             - name: etcd-client-certs
-              mountPath: /etc/ssl/etcd/tls.crt
-              subPath: tls.crt
-              readOnly: true
-            - name: etcd-client-certs
-              mountPath: /etc/ssl/etcd/tls.key
-              subPath: tls.key
-              readOnly: true
-            - name: etcd-client-certs
-              mountPath: /etc/ssl/etcd/ca.crt
-              subPath: ca.crt
+              mountPath: /etc/ssl/etcd
               readOnly: true
           {{- end }}
           {{- with $.Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
       volumes:
+        - name: gateway-secrets-volume
+          secret:
+            secretName: itential-gateway-secrets
       {{- if $.Values.useTLS }}
         - name: gateway-cert-volume
           secret:
