@@ -110,24 +110,30 @@ configuration sections in values.yaml file can also contain all of the environme
 pod. For example, this will create a simple server:
 
 ```yaml
+hostname: iag5.example.com
+port: 50051
+useTLS: true
+
 # Set the number of runner replicas to zero
 runnerSettings:
   replicaCount: 0
-  env:
+  env: {}
     ...
 
 # Set the number of server replicas to one
 serverSettings:
   replicaCount: 1
-  env:
-    GATEWAY_SERVER_DISTRIBUTED_EXECUTION: false
+  connectEnabled: true
+  connectHosts: "itential.example.com" # The hostname of the Itential server
+  connectInsecureEnabled: true
+  env: {}
     ...
 
 # Configure all pods with these values
 applicationSettings:
-  env:
-    GATEWAY_COMMANDER_ENABLED: false
-    GATEWAY_STORE_BACKEND: "memory"
+  clusterId: cluster_1
+  storeBackend: memory
+  env: {}
 ```
 
 ### Distributed Server
@@ -151,62 +157,93 @@ contain all of the environment variables for a pod. For example, this will creat
 server:
 
 ```yaml
+hostname: iag5.example.com
+port: 50051
+useTLS: true
+
 # Set the number of runner replicas to the desired number of runners
 runnerSettings:
-  replicaCount: 5
-  env:
+  replicaCount: 3
+  env: {}
     ...
 
 # Set the number of server replicas to one
 serverSettings:
   replicaCount: 1
-  env:
-    GATEWAY_SERVER_DISTRIBUTED_EXECUTION: true
+  connectEnabled: true
+  connectHosts: "itential.example.com" # The hostname of the Itential server
+  connectInsecureEnabled: true
+  env: {}
     ...
 
 # Configure all pods with these values
 applicationSettings:
-  env:
-    GATEWAY_COMMANDER_ENABLED: false
-    GATEWAY_STORE_BACKEND: "etcd"
-    GATEWAY_STORE_ETCD_HOSTS: "etcd.default.svc.cluster.local:2379"
+  etcdTlsSecretName: etcd-tls-secret
+  clusterId: cluster_1
+  storeBackend: etcd # "etcd", "memory", "dynamodb"
+
+  # Etcd settings
+  etcdHosts: "etcd.default.svc.cluster.local:2379"
+  env: {}
 ```
+
+### Using DynamoDB instead of Etcd
+
+Just change the `storeBackend` and add the DynamoDB table name.
+
+```yaml
+# Configure all pods with these values
+applicationSettings:
+  clusterId: cluster_1
+  storeBackend: dynamodb
+
+  # DynamoDB settings
+  dynamodbTableName: "itential-dynamodb-test"
+  env: {}
+  ```
 
 ### Using TLS connections
 
 To enable TLS connections between IAG5 and Etcd you can use a configuration like this:
 
 ```yaml
+hostname: iag5.example.com
+port: 50051
+useTLS: true
+
 # Set the number of runner replicas to the desired number of runners
 runnerSettings:
-  replicaCount: 5
-  env:
+  replicaCount: 3
+  env: {}
     ...
 
 # Set the number of server replicas to one
 serverSettings:
   replicaCount: 1
-  env:
-    GATEWAY_SERVER_DISTRIBUTED_EXECUTION: true
+  connectEnabled: true
+  connectHosts: "itential.example.com" # The hostname of the Itential server
+  connectInsecureEnabled: true
+  env: {}
     ...
 
 # Configure all pods with these values
 applicationSettings:
   etcdTlsSecretName: etcd-tls-secret
-  env:
-    GATEWAY_COMMANDER_ENABLED: false
-    GATEWAY_STORE_BACKEND: "etcd"
-    GATEWAY_STORE_ETCD_HOSTS: "etcd.default.svc.cluster.local:2379"
-    GATEWAY_STORE_ETCD_USE_TLS: true
-    GATEWAY_STORE_ETCD_CA_CERTIFICATE_FILE: /etc/ssl/etcd/ca.crt
-    GATEWAY_STORE_ETCD_CERTIFICATE_FILE: /etc/ssl/etcd/tls-client.crt
-    GATEWAY_STORE_ETCD_CLIENT_CERT_AUTH: true
-    GATEWAY_STORE_ETCD_PRIVATE_KEY_FILE: /etc/ssl/etcd/tls-client.key
+  clusterId: cluster_1
+  logLevel: DEBUG
+  storeBackend: etcd
+
+  # Etcd settings
+  etcdUseTLS: true
+  etcdUseClientCertAuth: true
+  etcdHosts: "etcd.default.svc.cluster.local:2379"
+  env: {}
 ```
 
 This requires an additional Secret to be installed in the Kubernetes environment. That Secret's
 name must be provided to the pods as the value of `applicationSettings.etcdTlsSecretName`. The
-Deployments will mount this secret as files whose paths are described by `GATEWAY_STORE_ETCD_CA_CERTIFICATE_FILE`, `GATEWAY_STORE_ETCD_CERTIFICATE_FILE`, and
+Deployments will mount this secret as files whose paths are described by
+`GATEWAY_STORE_ETCD_CA_CERTIFICATE_FILE`, `GATEWAY_STORE_ETCD_CERTIFICATE_FILE`, and
 `GATEWAY_STORE_ETCD_PRIVATE_KEY_FILE`.
 
 ### Run the Chart
