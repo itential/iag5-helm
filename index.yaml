@@ -1,0 +1,31 @@
+apiVersion: v1
+entries:
+  iag5:
+  - apiVersion: v2
+    appVersion: 5.1.1
+    created: "2025-09-02T17:45:51.282888292Z"
+    dependencies:
+    - condition: etcd.enabled
+      name: etcd
+      repository: https://charts.bitnami.com/bitnami
+      version: ^11.3.0
+    - condition: certManager.enabled
+      name: cert-manager
+      repository: https://charts.jetstack.io
+      version: ^1.12.3
+    - condition: external-dns.enabled
+      name: external-dns
+      repository: https://kubernetes-sigs.github.io/external-dns/
+      version: ^1.17.0
+    description: A Helm chart for Kubernetes
+    digest: b643f0a0d3ca90cdc1398daa22b7a2242419360cf900259091af4f8b6d5d75bd
+    home: https://github.com/itential/iag5-helm
+    icon: https://www.itential.com/wp-content/uploads/2023/12/Product-Icon_IAG.png
+    name: iag5
+    sources:
+    - https://github.com/itential/iag5-helm
+    type: application
+    urls:
+    - https://github.com/itential/iag5-helm/releases/download/iag5-1.0.2/iag5-1.0.2.tgz
+    version: 1.0.2
+generated: "2025-09-02T17:45:51.282904923Z"
