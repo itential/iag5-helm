@@ -18,6 +18,10 @@ version: 1.0.1
 # It is recommended to use it with quotes.
 appVersion: "5.1.1"
 
+home: https://github.com/itential/iag5-helm
+sources:
+  - https://github.com/itential/iag5-helm
+
 # This application has a conditional dependency on Etcd. When the application is run in a certain
 # configuration this becomes a requirement.
 dependencies:
