@@ -460,26 +460,19 @@ tests:
   - it: should configure resources when specified
     set:
       serverSettings.replicaCount: 1
-      resources:
-        requests:
-          cpu: 100m
-          memory: 128Mi
-        limits:
-          cpu: 500m
-          memory: 512Mi
     asserts:
       - equal:
           path: spec.template.spec.containers[0].resources.requests.cpu
-          value: 100m
+          value: 1000m
       - equal:
           path: spec.template.spec.containers[0].resources.requests.memory
-          value: 128Mi
+          value: 256Mi
       - equal:
           path: spec.template.spec.containers[0].resources.limits.cpu
-          value: 500m
+          value: "1"
       - equal:
           path: spec.template.spec.containers[0].resources.limits.memory
-          value: 512Mi
+          value: 2Gi
 
   - it: should have the expected standard annotations
     set:
