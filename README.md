@@ -1,7 +1,7 @@
 # IAG5 Helm Chart
 
 This chart is designed to enable the easy and rapid deployment of IAG5 environments and
-architectures.
+architectures. Requires Kubernetes version `1.31` or greater and Helm version `v3.15.0`.
 
 ## IAG5 Architectures
 

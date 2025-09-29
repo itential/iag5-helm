@@ -157,7 +157,22 @@ certificate:
     postalCodes:
       - "30309"
 
-resources: {}
+resources:
+  enabled: true
+  runners:
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+    requests:
+      cpu: "1000m"
+      memory: "256Mi"
+  servers:
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+    requests:
+      cpu: "1000m"
+      memory: "256Mi"
 
 livenessProbe:
   enabled: true

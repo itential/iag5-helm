@@ -132,8 +132,10 @@ spec:
           readinessProbe:
             {{- toYaml $.Values.readinessProbe.settings | nindent 12 }}
           {{- end }}
+          {{- if $.Values.resources.enabled }}
           resources:
-            {{- toYaml $.Values.resources | nindent 12 }}
+            {{- toYaml $.Values.resources.runners | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: gateway-secrets-volume
               mountPath: /etc/gateway/keys/encryption.key
