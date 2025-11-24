@@ -274,10 +274,20 @@ Helm looks through ALL rendered Kubernetes manifests in chart for resources that
 annotations:
   "helm.sh/hook": test
 ```
-Run test using below command
+Run all test using below command
 
 ```bash
 helm test iag5 -n <NAMESPACE> --logs
+```
+Run individual test using below command
+
+```bash
+helm test iag5 -n <NAMESPACE> --filter name=iag5-test-connection --logs
+```
+Run multiple tests using below command
+
+```bash
+helm test iag5 -n <NAMESPACE> --filter 'name=iag5-test-version,name=iag5-test-processes' --logs
 ```
 
 #### Values
