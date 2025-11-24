@@ -258,6 +258,14 @@ applicationSettings:
   # separated list: hostname1:port hostname2:port.
   etcdHosts: "etcd.default.svc.cluster.local:2379"
 
+tests:
+  enabled: true
+  processCount:
+    server:
+      min: 5  # Minimum processes for server pods
+    runner:
+      min: 5  # Minimum processes for runner pods
+
   # DynamoDB settings
   # -- The DynamoDB table name when storeBackend is set to "dynamodb"
   dynamodbTableName: ""

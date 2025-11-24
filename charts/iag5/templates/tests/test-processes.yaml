@@ -1,0 +1,160 @@
+# Test to check the number of processes running
+# Test will check the number of processes running in sever & running with 
+# minimum number of processes mentioned in values.yaml
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "iag5.fullname" . }}-test-processes"
+  labels:
+    {{- include "iag5.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  serviceAccountName: {{ include "iag5.fullname" . }}-test
+  containers:
+  - name: process-checker
+    image: bitnami/kubectl:latest
+    command: ['sh', '-c']
+    args:
+    - |
+      set -e
+      
+      # Get minimum process counts from values (with defaults)
+      MIN_PROCESSES_SERVER={{ .Values.tests.processCount.server.min | default 5 }}
+      MIN_PROCESSES_RUNNER={{ .Values.tests.processCount.runner.min | default 5 }}
+      
+      echo "========================================="
+      echo "IAG5 Process Count Verification"
+      echo "Namespace: {{ .Release.Namespace }}"
+      echo "Minimum expected processes (server): $MIN_PROCESSES_SERVER"
+      echo "Minimum expected processes (runner): $MIN_PROCESSES_RUNNER"
+      echo "========================================="
+      echo ""
+      
+      FAILED=0
+      TOTAL_PODS=0
+      PASSED_PODS=0
+      
+      # Wait for pods to be ready
+      echo "Waiting for IAG5 pods to be ready..."
+      kubectl wait --for=condition=ready pod \
+        -l app.kubernetes.io/name={{ include "iag5.name" . }} \
+        -n {{ .Release.Namespace }} \
+        --timeout=60s || true
+      echo ""
+      
+      # Check server pods
+      echo "========================================="
+      echo "Checking SERVER pods..."
+      echo "========================================="
+      SERVER_PODS=$(kubectl get pods \
+        -l app.kubernetes.io/name={{ include "iag5.name" . }},app.kubernetes.io/component=server \
+        -n {{ .Release.Namespace }} \
+        -o jsonpath='{.items[*].metadata.name}')
+      
+      if [ -z "$SERVER_PODS" ]; then
+        echo "WARNING: No server pods found"
+      else
+        for POD in $SERVER_PODS; do
+          TOTAL_PODS=$((TOTAL_PODS + 1))
+          echo ""
+          echo "Pod: $POD"
+          
+          # Get pod status
+          POD_STATUS=$(kubectl get pod $POD -n {{ .Release.Namespace }} -o jsonpath='{.status.phase}')
+          echo "  Status: $POD_STATUS"
+          
+          if [ "$POD_STATUS" != "Running" ]; then
+            echo "  Result:  SKIPPED (Pod not running)"
+            continue
+          fi
+          
+          # Count processes
+          PROCESS_COUNT=$(kubectl exec -n {{ .Release.Namespace }} $POD -- sh -c 'ps aux | wc -l' 2>/dev/null || echo "0")
+          echo "  Process count: $PROCESS_COUNT"
+          
+          if [ "$PROCESS_COUNT" -ge "$MIN_PROCESSES_SERVER" ]; then
+            echo "  Result: ✓ PASS ($PROCESS_COUNT >= $MIN_PROCESSES_SERVER)"
+            PASSED_PODS=$((PASSED_PODS + 1))
+          else
+            echo "  Result: ✗ FAIL ($PROCESS_COUNT < $MIN_PROCESSES_SERVER)"
+            FAILED=1
+            
+            # Show actual processes for debugging
+            echo "  Actual processes:"
+            kubectl exec -n {{ .Release.Namespace }} $POD -- ps aux 2>/dev/null | head -10 || echo "    Could not retrieve process list"
+          fi
+        done
+      fi
+      
+      # Check runner pods
+      echo ""
+      echo "========================================="
+      echo "Checking RUNNER pods..."
+      echo "========================================="
+      RUNNER_PODS=$(kubectl get pods \
+        -l app.kubernetes.io/name={{ include "iag5.name" . }},app.kubernetes.io/component=runner \
+        -n {{ .Release.Namespace }} \
+        -o jsonpath='{.items[*].metadata.name}')
+      
+      if [ -z "$RUNNER_PODS" ]; then
+        echo "INFO: No runner pods found (runnerSettings.replicaCount may be 0)"
+      else
+        for POD in $RUNNER_PODS; do
+          TOTAL_PODS=$((TOTAL_PODS + 1))
+          echo ""
+          echo "Pod: $POD"
+          
+          # Get pod status
+          POD_STATUS=$(kubectl get pod $POD -n {{ .Release.Namespace }} -o jsonpath='{.status.phase}')
+          echo "  Status: $POD_STATUS"
+          
+          if [ "$POD_STATUS" != "Running" ]; then
+            echo "  Result:  SKIPPED (Pod not running)"
+            continue
+          fi
+          
+          # Count processes
+          PROCESS_COUNT=$(kubectl exec -n {{ .Release.Namespace }} $POD -- sh -c 'ps aux | wc -l' 2>/dev/null || echo "0")
+          echo "  Process count: $PROCESS_COUNT"
+          
+          if [ "$PROCESS_COUNT" -ge "$MIN_PROCESSES_RUNNER" ]; then
+            echo "  Result: ✓ PASS ($PROCESS_COUNT >= $MIN_PROCESSES_RUNNER)"
+            PASSED_PODS=$((PASSED_PODS + 1))
+          else
+            echo "  Result: ✗ FAIL ($PROCESS_COUNT < $MIN_PROCESSES_RUNNER)"
+            FAILED=1
+            
+            # Show actual processes for debugging
+            echo "  Actual processes:"
+            kubectl exec -n {{ .Release.Namespace }} $POD -- ps aux 2>/dev/null | head -10 || echo "    Could not retrieve process list"
+          fi
+        done
+      fi
+      
+      # Print summary
+      echo ""
+      echo "========================================="
+      echo "SUMMARY"
+      echo "========================================="
+      echo "Total pods checked: $TOTAL_PODS"
+      echo "Passed: $PASSED_PODS"
+      echo "Failed: $((TOTAL_PODS - PASSED_PODS))"
+      echo ""
+      
+      if [ $FAILED -eq 0 ] && [ $TOTAL_PODS -gt 0 ]; then
+        echo "Result: ✓ SUCCESS"
+        echo "All pods have adequate process counts"
+        exit 0
+      elif [ $TOTAL_PODS -eq 0 ]; then
+        echo "Result: ✗ FAILED"
+        echo "No IAG5 pods found to test"
+        exit 1
+      else
+        echo "Result: ✗ FAILED"
+        echo "One or more pods do not have adequate process counts"
+        exit 1
+      fi
+  restartPolicy: Never

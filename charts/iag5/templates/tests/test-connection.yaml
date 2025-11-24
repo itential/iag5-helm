@@ -1,0 +1,29 @@
+# Test to check the connection to 50051 to ensure IAG5 service is running
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "iag5.fullname" . }}-test-connection"
+  labels:
+    {{- include "iag5.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  containers:
+  - name: connection-test
+    image: busybox:latest
+    command: ['sh', '-c']
+# Testing connection to iag5-service.am.svc.cluster.local:50051
+    args:
+    - |
+      echo "Testing connection to {{ .Values.service.name }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.port }}"
+      nc -zv -w 10 {{ .Values.service.name }}.{{ .Release.Namespace }}.svc.cluster.local {{ .Values.port }}
+      if [ $? -eq 0 ]; then
+        echo "SUCCESS: Port {{ .Values.port }} is open and accepting connections"
+        exit 0
+      else
+        echo "FAILED: Cannot connect to port {{ .Values.port }}"
+        exit 1
+      fi
+  restartPolicy: Never

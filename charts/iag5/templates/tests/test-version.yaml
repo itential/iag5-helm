@@ -1,0 +1,200 @@
+# Test to check the version of IAG5
+# test compares the IAG version present in values.yaml file 
+# with IAG running in server and runner
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "iag5.fullname" . }}-test-version"
+  labels:
+    {{- include "iag5.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  serviceAccountName: {{ include "iag5.fullname" . }}-test
+  containers:
+  - name: version-checker
+    image: bitnami/kubectl:latest
+    command: ['sh', '-c']
+    args:
+    - |
+      set -e
+      
+      echo "========================================="
+      echo "IAG5 Version Verification"
+      echo "Namespace: {{ .Release.Namespace }}"
+      echo "Expected version: {{ .Values.image.tag }}"
+      echo "========================================="
+      echo ""
+      
+      FAILED=0
+      TOTAL_PODS=0
+      PASSED_PODS=0
+      EXPECTED_VERSION="{{ .Values.image.tag }}"
+      
+      # Extract version number (e.g., "5.1.1-amd64" -> "5.1.1")
+      EXPECTED_VERSION_NUMBER=$(echo "$EXPECTED_VERSION" | sed 's/-.*$//')
+      echo "Expected version number: $EXPECTED_VERSION_NUMBER"
+      echo ""
+      
+      # Wait for pods to be ready
+      echo "Waiting for IAG5 pods to be ready..."
+      kubectl wait --for=condition=ready pod \
+        -l app.kubernetes.io/name={{ include "iag5.name" . }} \
+        -n {{ .Release.Namespace }} \
+        --timeout=60s || true
+      echo ""
+      
+      # Check server pods
+      echo "========================================="
+      echo "Checking SERVER pods..."
+      echo "========================================="
+      SERVER_PODS=$(kubectl get pods \
+        -l app.kubernetes.io/name={{ include "iag5.name" . }},app.kubernetes.io/component=server \
+        -n {{ .Release.Namespace }} \
+        -o jsonpath='{.items[*].metadata.name}')
+      
+      if [ -z "$SERVER_PODS" ]; then
+        echo "WARNING: No server pods found"
+      else
+        for POD in $SERVER_PODS; do
+          TOTAL_PODS=$((TOTAL_PODS + 1))
+          echo ""
+          echo "Pod: $POD"
+          
+          # Get pod status
+          POD_STATUS=$(kubectl get pod $POD -n {{ .Release.Namespace }} -o jsonpath='{.status.phase}')
+          echo "  Status: $POD_STATUS"
+          
+          if [ "$POD_STATUS" != "Running" ]; then
+            echo "  Result:  SKIPPED (Pod not running)"
+            continue
+          fi
+          
+          # Get version from iagctl
+          echo "  Executing: iagctl version"
+          VERSION_OUTPUT=$(kubectl exec -n {{ .Release.Namespace }} $POD -- iagctl version 2>&1 || echo "ERROR")
+          
+          if echo "$VERSION_OUTPUT" | grep -q "ERROR\|error\|command not found"; then
+            echo "  Error getting version:"
+            echo "$VERSION_OUTPUT" | sed 's/^/    /'
+            echo "  Result: ✗ FAIL (Could not execute iagctl version)"
+            FAILED=1
+            continue
+          fi
+          
+          echo "  Version output:"
+          echo "$VERSION_OUTPUT" | sed 's/^/    /'
+          
+          # Extract version number from output (looking for pattern like "version: 5.1.1" or "5.1.1")
+          ACTUAL_VERSION=$(echo "$VERSION_OUTPUT" | grep -i "version" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          
+          if [ -z "$ACTUAL_VERSION" ]; then
+            echo "  Result: ✗ FAIL (Could not parse version from output)"
+            FAILED=1
+            continue
+          fi
+          
+          echo "  Parsed version: $ACTUAL_VERSION"
+          
+          # Compare versions
+          if [ "$ACTUAL_VERSION" = "$EXPECTED_VERSION_NUMBER" ]; then
+            echo "  Result: ✓ PASS ($ACTUAL_VERSION = $EXPECTED_VERSION_NUMBER)"
+            PASSED_PODS=$((PASSED_PODS + 1))
+          else
+            echo "  Result: ✗ FAIL ($ACTUAL_VERSION ≠ $EXPECTED_VERSION_NUMBER)"
+            FAILED=1
+          fi
+        done
+      fi
+      
+      # Check runner pods
+      echo ""
+      echo "========================================="
+      echo "Checking RUNNER pods..."
+      echo "========================================="
+      RUNNER_PODS=$(kubectl get pods \
+        -l app.kubernetes.io/name={{ include "iag5.name" . }},app.kubernetes.io/component=runner \
+        -n {{ .Release.Namespace }} \
+        -o jsonpath='{.items[*].metadata.name}')
+      
+      if [ -z "$RUNNER_PODS" ]; then
+        echo "INFO: No runner pods found (runnerSettings.replicaCount may be 0)"
+      else
+        for POD in $RUNNER_PODS; do
+          TOTAL_PODS=$((TOTAL_PODS + 1))
+          echo ""
+          echo "Pod: $POD"
+          
+          # Get pod status
+          POD_STATUS=$(kubectl get pod $POD -n {{ .Release.Namespace }} -o jsonpath='{.status.phase}')
+          echo "  Status: $POD_STATUS"
+          
+          if [ "$POD_STATUS" != "Running" ]; then
+            echo "  Result:  SKIPPED (Pod not running)"
+            continue
+          fi
+          
+          # Get version from iagctl
+          echo "  Executing: iagctl version"
+          VERSION_OUTPUT=$(kubectl exec -n {{ .Release.Namespace }} $POD -- iagctl version 2>&1 || echo "ERROR")
+          
+          if echo "$VERSION_OUTPUT" | grep -q "ERROR\|error\|command not found"; then
+            echo "  Error getting version:"
+            echo "$VERSION_OUTPUT" | sed 's/^/    /'
+            echo "  Result: ✗ FAIL (Could not execute iagctl version)"
+            FAILED=1
+            continue
+          fi
+          
+          echo "  Version output:"
+          echo "$VERSION_OUTPUT" | sed 's/^/    /'
+          
+          # Extract version number from output
+          ACTUAL_VERSION=$(echo "$VERSION_OUTPUT" | grep -i "version" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          
+          if [ -z "$ACTUAL_VERSION" ]; then
+            echo "  Result: ✗ FAIL (Could not parse version from output)"
+            FAILED=1
+            continue
+          fi
+          
+          echo "  Parsed version: $ACTUAL_VERSION"
+          
+          # Compare versions
+          if [ "$ACTUAL_VERSION" = "$EXPECTED_VERSION_NUMBER" ]; then
+            echo "  Result: ✓ PASS ($ACTUAL_VERSION = $EXPECTED_VERSION_NUMBER)"
+            PASSED_PODS=$((PASSED_PODS + 1))
+          else
+            echo "  Result: ✗ FAIL ($ACTUAL_VERSION ≠ $EXPECTED_VERSION_NUMBER)"
+            FAILED=1
+          fi
+        done
+      fi
+      
+      # Print summary
+      echo ""
+      echo "========================================="
+      echo "SUMMARY"
+      echo "========================================="
+      echo "Expected version: $EXPECTED_VERSION_NUMBER"
+      echo "Total pods checked: $TOTAL_PODS"
+      echo "Passed: $PASSED_PODS"
+      echo "Failed: $((TOTAL_PODS - PASSED_PODS))"
+      echo ""
+      
+      if [ $FAILED -eq 0 ] && [ $TOTAL_PODS -gt 0 ]; then
+        echo "Result: ✓ SUCCESS"
+        echo "All pods are running the expected version"
+        exit 0
+      elif [ $TOTAL_PODS -eq 0 ]; then
+        echo "Result: ✗ FAILED"
+        echo "No IAG5 pods found to test"
+        exit 1
+      else
+        echo "Result: ✗ FAILED"
+        echo "One or more pods are not running the expected version"
+        exit 1
+      fi
+  restartPolicy: Never
