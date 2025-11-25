@@ -22,14 +22,14 @@ spec:
       set -e
       
       # Get minimum process counts from values (with defaults)
-      MIN_PROCESSES_SERVER={{ .Values.tests.processCount.server.min | default 5 }}
-      MIN_PROCESSES_RUNNER={{ .Values.tests.processCount.runner.min | default 5 }}
+      MIN_PROCESSES_SERVER={{ .Values.tests.processCount.server.min | default 1 }}
+      MIN_PROCESSES_RUNNER={{ .Values.tests.processCount.runner.min | default 1 }}
       
       echo "========================================="
       echo "IAG5 Process Count Verification"
       echo "Namespace: {{ .Release.Namespace }}"
-      echo "Minimum expected processes (server): $MIN_PROCESSES_SERVER"
-      echo "Minimum expected processes (runner): $MIN_PROCESSES_RUNNER"
+      echo "Minimum expected 'iagctl server' processes: $MIN_PROCESSES_SERVER"
+      echo "Minimum expected 'iagctl runner' processes: $MIN_PROCESSES_RUNNER"
       echo "========================================="
       echo ""
       
@@ -71,9 +71,9 @@ spec:
             continue
           fi
           
-          # Count processes
-          PROCESS_COUNT=$(kubectl exec -n {{ .Release.Namespace }} $POD -- sh -c 'ps aux | wc -l' 2>/dev/null || echo "0")
-          echo "  Process count: $PROCESS_COUNT"
+          # Count 'iagctl server' processes
+          PROCESS_COUNT=$(kubectl exec -n {{ .Release.Namespace }} $POD -- sh -c "ps aux | grep 'iagctl server' | grep -v grep | wc -l" 2>/dev/null || echo "0")
+          echo "  'iagctl server' process count: $PROCESS_COUNT"
           
           if [ "$PROCESS_COUNT" -ge "$MIN_PROCESSES_SERVER" ]; then
             echo "  Result: ✓ PASS ($PROCESS_COUNT >= $MIN_PROCESSES_SERVER)"
@@ -82,9 +82,9 @@ spec:
             echo "  Result: ✗ FAIL ($PROCESS_COUNT < $MIN_PROCESSES_SERVER)"
             FAILED=1
             
-            # Show actual processes for debugging
-            echo "  Actual processes:"
-            kubectl exec -n {{ .Release.Namespace }} $POD -- ps aux 2>/dev/null | head -10 || echo "    Could not retrieve process list"
+            # Only show processes on failure for debugging
+            echo "  All processes in pod (for debugging):"
+            kubectl exec -n {{ .Release.Namespace }} $POD -- ps aux 2>/dev/null | sed 's/^/    /' || echo "    Could not retrieve process list"
           fi
         done
       fi
@@ -116,9 +116,9 @@ spec:
             continue
           fi
           
-          # Count processes
-          PROCESS_COUNT=$(kubectl exec -n {{ .Release.Namespace }} $POD -- sh -c 'ps aux | wc -l' 2>/dev/null || echo "0")
-          echo "  Process count: $PROCESS_COUNT"
+          # Count 'iagctl runner' processes
+          PROCESS_COUNT=$(kubectl exec -n {{ .Release.Namespace }} $POD -- sh -c "ps aux | grep 'iagctl runner' | grep -v grep | wc -l" 2>/dev/null || echo "0")
+          echo "  'iagctl runner' process count: $PROCESS_COUNT"
           
           if [ "$PROCESS_COUNT" -ge "$MIN_PROCESSES_RUNNER" ]; then
             echo "  Result: ✓ PASS ($PROCESS_COUNT >= $MIN_PROCESSES_RUNNER)"
@@ -127,9 +127,9 @@ spec:
             echo "  Result: ✗ FAIL ($PROCESS_COUNT < $MIN_PROCESSES_RUNNER)"
             FAILED=1
             
-            # Show actual processes for debugging
-            echo "  Actual processes:"
-            kubectl exec -n {{ .Release.Namespace }} $POD -- ps aux 2>/dev/null | head -10 || echo "    Could not retrieve process list"
+            # Only show processes on failure for debugging
+            echo "  All processes in pod (for debugging):"
+            kubectl exec -n {{ .Release.Namespace }} $POD -- ps aux 2>/dev/null | sed 's/^/    /' || echo "    Could not retrieve process list"
           fi
         done
       fi
@@ -146,7 +146,7 @@ spec:
       
       if [ $FAILED -eq 0 ] && [ $TOTAL_PODS -gt 0 ]; then
         echo "Result: ✓ SUCCESS"
-        echo "All pods have adequate process counts"
+        echo "All pods have adequate 'iagctl' process counts"
         exit 0
       elif [ $TOTAL_PODS -eq 0 ]; then
         echo "Result: ✗ FAILED"
@@ -154,7 +154,7 @@ spec:
         exit 1
       else
         echo "Result: ✗ FAILED"
-        echo "One or more pods do not have adequate process counts"
+        echo "One or more pods do not have adequate 'iagctl' process counts"
         exit 1
       fi
   restartPolicy: Never

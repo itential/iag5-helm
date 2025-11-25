@@ -262,9 +262,9 @@ tests:
   enabled: true
   processCount:
     server:
-      min: 5  # Minimum processes for server pods
+      min: 1  # Minimum processes for server pods
     runner:
-      min: 5  # Minimum processes for runner pods
+      min: 1  # Minimum processes for runner pods
 
   # DynamoDB settings
   # -- The DynamoDB table name when storeBackend is set to "dynamodb"
