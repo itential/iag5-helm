@@ -262,6 +262,33 @@ This project uses the helm unittest plugin.
 ```bash
 helm unittest .
 ```
+### Run helm tests
+
+This project uses helm tests that should be run after deployment. These are integration tests that run actual pods in your cluster after deployment to verify the application is working correctly.
+
+Helm tests are present in `iag5-helm/charts/iag5/templates/tests/`
+
+Helm looks through ALL rendered Kubernetes manifests in chart for resources that have this specific annotation:
+
+```bash
+annotations:
+  "helm.sh/hook": test
+```
+Run all test using below command
+
+```bash
+helm test iag5 -n <NAMESPACE> --logs
+```
+Run individual test using below command
+
+```bash
+helm test iag5 -n <NAMESPACE> --filter name=iag5-test-connection --logs
+```
+Run multiple tests using below command
+
+```bash
+helm test iag5 -n <NAMESPACE> --filter 'name=iag5-test-version,name=iag5-test-processes' --logs
+```
 
 #### Values
 
