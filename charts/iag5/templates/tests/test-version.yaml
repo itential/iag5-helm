@@ -3,7 +3,7 @@
 # with IAG running in server and runner
 
 apiVersion: v1
-kind: Pod
+kind: Job
 metadata:
   name: "{{ include "iag5.fullname" . }}-test-version"
   labels:
