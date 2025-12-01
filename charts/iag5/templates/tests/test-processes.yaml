@@ -3,7 +3,7 @@
 # minimum number of processes mentioned in values.yaml
 
 apiVersion: v1
-kind: Pod
+kind: Job
 metadata:
   name: "{{ include "iag5.fullname" . }}-test-processes"
   labels:

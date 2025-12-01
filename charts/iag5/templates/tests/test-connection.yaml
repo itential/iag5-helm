@@ -1,7 +1,7 @@
 # Test to check the connection to 50051 to ensure IAG5 service is running
 
 apiVersion: v1
-kind: Pod
+kind: Job
 metadata:
   name: "{{ include "iag5.fullname" . }}-test-connection"
   labels:
