@@ -121,7 +121,7 @@ spec:
           image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           ports:
-            - name: {{ include "iag5.fullname" $ }}-runner
+            - name: runner-port
               containerPort: {{ $.Values.port }}
               protocol: TCP
           {{- if $.Values.livenessProbe.enabled }}

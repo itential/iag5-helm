@@ -260,7 +260,7 @@ tests:
     asserts:
       - equal:
           path: spec.template.spec.containers[0].ports[0].name
-          value: RELEASE-NAME-iag5-runner
+          value: runner-port
       - equal:
           path: spec.template.spec.containers[0].ports[0].containerPort
           value: 8080
