@@ -182,18 +182,6 @@ Both liveness and readiness use `exec: pgrep iagctl`:
 
 ---
 
-## Example Values Files
-
-| File | Use Case |
-|------|----------|
-| `values-aws-simple.yaml` | Single server, memory backend, no runners |
-| `values-aws-eks-NickA.yaml` | Nick's personal test env on EKS, ClusterIssuer, no runners |
-| `values-aws-distributed-etcd.yaml` | Full distributed setup with etcd backend |
-| `values-perf-simple.yaml` | Perf test, single server |
-| `values-perf-distributed-etcd-perf.yaml` | Perf test, distributed + etcd |
-
----
-
 ## Testing
 
 Unit tests use the `helm unittest` plugin:
