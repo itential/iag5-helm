@@ -136,11 +136,7 @@ spec:
           {{- end }}
           {{- if .Values.resources.enabled }}
           resources:
-            {{- if $distributedExecution }}
             {{- toYaml .Values.resources.servers | nindent 12 }}
-            {{- else }}
-            {{- toYaml .Values.resources.runners | nindent 12 }}
-            {{- end }}
           {{- end }}
           volumeMounts:
             - name: gateway-secrets-volume

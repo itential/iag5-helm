@@ -58,20 +58,30 @@ serverSettings:
   connectEnabled: true      # Whether to register with Itential Platform
   connectHosts: itential.example.com:8080
   connectInsecureEnabled: false
+  env: {}                   # Arbitrary env vars injected into server pods
 
 runnerSettings:
   replicaCount: 0           # 0 = simple mode, N = distributed mode
+  env: {}                   # Arbitrary env vars injected into runner pods
+
+applicationSettings:
+  env: {}                   # Arbitrary env vars injected into all pods
+# Full list: https://docs.itential.com/docs/iag5-config-variables
 ```
 
 ### Application Settings
 
 ```yaml
-clusterId: cluster_1        # Identifier for this IAG instance
-logLevel: DEBUG
-storeBackend: memory        # Options: memory | local | etcd | dynamodb
+# Top-level
 hostname: iag5.example.com
 port: 50051
 useTLS: true
+
+# Nested under applicationSettings:
+applicationSettings:
+  clusterId: cluster_1      # Identifier for this IAG instance
+  logLevel: DEBUG
+  storeBackend: memory      # Options: memory | local | etcd | dynamodb
 ```
 
 ### Image
@@ -114,17 +124,20 @@ The certificate template auto-generates DNS SANs for:
 
 **etcd**: requires `etcd.enabled: true` (or an external etcd) plus:
 ```yaml
-etcdHosts: etcd.default.svc.cluster.local:2379
-etcdUseTLS: true
-etcdUseClientCertAuth: true
-etcdTlsSecretName: etcd-tls-secret
+applicationSettings:
+  storeBackend: etcd
+  etcdHosts: etcd.default.svc.cluster.local:2379
+  etcdUseTLS: true
+  etcdUseClientCertAuth: true
+  etcdTlsSecretName: etcd-tls-secret
 ```
 
 **dynamodb**:
 ```yaml
-storeBackend: dynamodb
-dynamodbTableName: your-table-name
-# Requires secret: dynamodb-aws-secrets
+applicationSettings:
+  storeBackend: dynamodb
+  dynamodbTableName: your-table-name
+# Also requires secret: dynamodb-aws-secrets (injected via envFrom)
 ```
 
 ---
@@ -136,7 +149,7 @@ These must exist in the namespace before install — the chart does **not** crea
 | Secret Name | Keys | Purpose |
 |-------------|------|---------|
 | `itential-ca` | `tls.crt`, `tls.key` | CA cert used by the Issuer |
-| `itential-gateway-secrets` | `encryptionKey` | 256-char base64 encryption key |
+| `itential-gateway-secrets` | `gatewayEncryptionKey` | 256-char base64 encryption key |
 | `<imagePullSecrets[].name>` | Docker config | Pull image from ECR |
 | `etcd-client-certs` | `ca.crt`, `tls.crt`, `tls.key` | Etcd mTLS (if etcd backend + TLS) |
 | `dynamodb-aws-secrets` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_REGION` | DynamoDB auth |
@@ -157,6 +170,8 @@ When `runnerSettings.replicaCount > 0`:
 
 ## Resource Defaults
 
+Controlled by `resources.enabled` (default: `true`). Set to `false` to apply no limits (useful for dev/lab).
+
 | Component | CPU Request | CPU Limit | Mem Request | Mem Limit |
 |-----------|-------------|-----------|-------------|-----------|
 | Server | 1 | 2 | 2Gi | 4Gi |
@@ -168,6 +183,7 @@ When `runnerSettings.replicaCount > 0`:
 ## Service
 
 - Type: `LoadBalancer` (default)
+- Name: `iag5-service` (default) — optional override via `service.name`. Changing it also renames all runner services (`{name}-runner-{n}`) and updates cert SANs automatically.
 - Port: `50051` (gRPC)
 - AWS NLB annotations included by default
 - Selector targets pods with label `app.kubernetes.io/component: server`
@@ -189,9 +205,9 @@ Unit tests use the `helm unittest` plugin:
 helm unittest charts/iag5
 ```
 
-Test files are in `charts/iag5/templates/tests/`. Snapshots live in `__snapshot__/`.
+Unit test files are in `charts/iag5/tests/`. Snapshots live in `charts/iag5/tests/__snapshot__/`.
 
-Helm integration test hooks are in `charts/iag5/tests/` and run with:
+Helm integration test hooks (post-install) are in `charts/iag5/templates/tests/` and run with:
 ```bash
 helm test <release-name>
 ```

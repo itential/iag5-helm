@@ -308,3 +308,17 @@ tests:
           path: metadata.annotations["itential.com/license"]
       - exists:
           path: metadata.annotations["helm.sh/template-file"]
+
+  - it: should default to iag5-service prefix when service.name is not set
+    set:
+      runnerSettings:
+        replicaCount: 2
+    asserts:
+      - equal:
+          path: metadata.name
+          value: "iag5-service-runner-0"
+        documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: "iag5-service-runner-1"
+        documentIndex: 1

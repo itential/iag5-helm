@@ -124,23 +124,34 @@ tests:
               fieldRef:
                 fieldPath: status.podIP
 
-  # - it: should set correct announcement address for each runner instance
-  #   set:
-  #     runnerSettings.replicaCount: 2
-  #     service.name: "test-service"
-  #   asserts:
-  #     - contains:
-  #         path: spec.template.spec.containers[0].env
-  #         content:
-  #           name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
-  #           value: "test-service-runner-0.NAMESPACE.svc.cluster.local"
-  #         documentIndex: 0
-  #     - contains:
-  #         path: spec.template.spec.containers[0].env
-  #         content:
-  #           name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
-  #           value: "test-service-runner-1.NAMESPACE.svc.cluster.local"
-  #         documentIndex: 1
+  - it: should set correct announcement address using service.name override
+    set:
+      runnerSettings.replicaCount: 2
+      service:
+        name: "test-service"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
+            value: "test-service-runner-0.NAMESPACE.svc.cluster.local"
+        documentIndex: 0
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
+            value: "test-service-runner-1.NAMESPACE.svc.cluster.local"
+        documentIndex: 1
+
+  - it: should use default iag5-service name in announcement address when service.name is not set
+    set:
+      runnerSettings.replicaCount: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
+            value: "iag5-service-runner-0.NAMESPACE.svc.cluster.local"
 
   - it: should set TLS environment variables when useTLS is true
     set:
@@ -540,16 +551,16 @@ tests:
           path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
           value: true
 
-  - it: should configure resources when specified
+  - it: should apply runner resource profile
     set:
       runnerSettings.replicaCount: 1
     asserts:
       - equal:
           path: spec.template.spec.containers[0].resources.requests.cpu
-          value: 1000m
+          value: "2"
       - equal:
           path: spec.template.spec.containers[0].resources.requests.memory
-          value: 256Mi
+          value: 4Gi
       - equal:
           path: spec.template.spec.containers[0].resources.limits.cpu
           value: "4"
@@ -645,3 +656,27 @@ tests:
       - equal:
           path: spec.template.metadata.annotations["foo"]
           value: bar
+
+  - it: should set GATEWAY_STORE_DYNAMODB_TABLE_NAME when storeBackend is dynamodb
+    set:
+      runnerSettings.replicaCount: 1
+      applicationSettings:
+        storeBackend: "dynamodb"
+        dynamodbTableName: "my-table"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_STORE_DYNAMODB_TABLE_NAME
+            value: "my-table"
+
+  - it: should load dynamodb-aws-secrets via envFrom when storeBackend is dynamodb
+    set:
+      runnerSettings.replicaCount: 1
+      applicationSettings:
+        storeBackend: "dynamodb"
+        dynamodbTableName: "my-table"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].envFrom[0].secretRef.name
+          value: dynamodb-aws-secrets

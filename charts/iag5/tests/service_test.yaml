@@ -79,3 +79,9 @@ tests:
       - equal:
           path: metadata.annotations["foo"]
           value: bar
+
+  - it: should default to iag5-service when service.name is not set
+    asserts:
+      - equal:
+          path: metadata.name
+          value: iag5-service
