@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $.Values.service.name }}-runner-{{ $i }}
+  name: {{ include "iag5.serviceName" $ }}-runner-{{ $i }}
   annotations:
     {{- include "iag5.annotations" $ | nindent 4 }}
   {{- with $.Values.service.annotations }}

@@ -62,6 +62,13 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
+The name of the main IAG5 service. Defaults to "iag5-service". Override with service.name in values.
+*/}}
+{{- define "iag5.serviceName" -}}
+{{- .Values.service.name | default "iag5-service" }}
+{{- end }}
+
+{{/*
 Common annotations.
 */}}
 {{- define "iag5.annotations" -}}

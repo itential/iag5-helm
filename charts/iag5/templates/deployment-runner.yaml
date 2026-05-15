@@ -106,7 +106,7 @@ spec:
             {{- end }}
             {{/* Announce the service address to match the DNS names in the TLS certs */}}
             - name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
-              value: "{{ $.Values.service.name }}-runner-{{ $i }}.{{ $.Release.Namespace }}.svc.cluster.local"
+              value: "{{ include "iag5.serviceName" $ }}-runner-{{ $i }}.{{ $.Release.Namespace }}.svc.cluster.local"
             {{- range $key, $value := $.Values.runnerSettings.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}

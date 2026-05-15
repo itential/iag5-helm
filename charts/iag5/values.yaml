@@ -97,8 +97,9 @@ securityContext: {}
 service:
   # -- The service type
   type: "LoadBalancer"
-  # -- The name of this Kubernetes service object
-  name: "iag5-service"
+  # -- Optional override for the service name. Defaults to "iag5-service".
+  # Changing this also affects runner service names ({name}-runner-{n}) and cert SANs.
+  # name: "iag5-service"
   # -- Annotations on the service object, passed through as is
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-type: nlb
@@ -258,6 +259,14 @@ applicationSettings:
   # separated list: hostname1:port hostname2:port.
   etcdHosts: "etcd.default.svc.cluster.local:2379"
 
+  # DynamoDB settings
+  # -- The DynamoDB table name when storeBackend is set to "dynamodb"
+  dynamodbTableName: ""
+
+  # Environment variables passed to all deployment pods
+  env: {}
+    # VAR_NAME: VAR_VALUE
+
 tests:
   enabled: true
   processCount:
@@ -265,14 +274,6 @@ tests:
       min: 1  # Minimum processes for server pods
     runner:
       min: 1  # Minimum processes for runner pods
-
-  # DynamoDB settings
-  # -- The DynamoDB table name when storeBackend is set to "dynamodb"
-  dynamodbTableName: ""
-
-  # Environment variables passed to all of the deployment pods
-  env: {}
-    # VAR_NAME: VAR_VALUE
 
 # -- Additional volumes on the output Deployment definition.
 volumes: []
