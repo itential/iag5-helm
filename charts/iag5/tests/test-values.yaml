@@ -22,7 +22,6 @@ securityContext: {}
 
 service:
   type: "LoadBalancer"
-  name: "iag5-service"
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-type: nlb
     service.beta.kubernetes.io/aws-load-balancer-internal: "false"
@@ -70,15 +69,15 @@ resources:
       cpu: "4"
       memory: "8Gi"
     requests:
-      cpu: "1000m"
-      memory: "256Mi"
+      cpu: "2"
+      memory: "4Gi"
   servers:
     limits:
       cpu: "1"
       memory: "2Gi"
     requests:
-      cpu: "1000m"
-      memory: "256Mi"
+      cpu: "500m"
+      memory: "1Gi"
 
 livenessProbe:
   enabled: true

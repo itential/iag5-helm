@@ -106,7 +106,7 @@ spec:
             {{- end }}
             {{/* Announce the service address to match the DNS names in the TLS certs */}}
             - name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
-              value: "{{ $.Values.service.name }}-runner-{{ $i }}.{{ $.Release.Namespace }}.svc.cluster.local"
+              value: "{{ include "iag5.serviceName" $ }}-runner-{{ $i }}.{{ $.Release.Namespace }}.svc.cluster.local"
             {{- range $key, $value := $.Values.runnerSettings.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}
@@ -146,7 +146,7 @@ spec:
               mountPath: /etc/ssl/gateway
               readOnly: true
           {{- end }}
-          {{- if $.Values.applicationSettings.etcdUseTLS }}
+          {{- if and (eq $.Values.applicationSettings.storeBackend "etcd") $.Values.applicationSettings.etcdUseTLS }}
             - name: etcd-client-certs
               mountPath: /etc/ssl/etcd
               readOnly: true
@@ -163,7 +163,7 @@ spec:
           secret:
             secretName: {{ include "iag5.fullname" $ }}-tls-secret
       {{- end }}
-      {{- if $.Values.applicationSettings.etcdUseTLS }}
+      {{- if and (eq $.Values.applicationSettings.storeBackend "etcd") $.Values.applicationSettings.etcdUseTLS }}
         - name: etcd-client-certs
           secret:
             secretName: etcd-client-certs

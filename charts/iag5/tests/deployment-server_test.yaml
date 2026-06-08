@@ -323,10 +323,12 @@ tests:
             secret:
               secretName: RELEASE-NAME-iag5-tls-secret
 
-  - it: should mount etcd TLS volumes when etcdUseTLS is true
+  - it: should mount etcd TLS volumes when storeBackend is etcd and etcdUseTLS is true
     set:
       serverSettings.replicaCount: 1
-      applicationSettings.etcdUseTLS: true
+      applicationSettings:
+        storeBackend: "etcd"
+        etcdUseTLS: true
     asserts:
       - contains:
           path: spec.template.spec.containers[0].volumeMounts
@@ -335,6 +337,66 @@ tests:
             mountPath: /etc/ssl/etcd
             readOnly: true
       - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: etcd-client-certs
+            secret:
+              secretName: "etcd-client-certs"
+
+  - it: should not mount etcd TLS volumes when storeBackend is not etcd even if etcdUseTLS is true
+    set:
+      serverSettings.replicaCount: 1
+      applicationSettings:
+        storeBackend: "memory"
+        etcdUseTLS: true
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: etcd-client-certs
+            mountPath: /etc/ssl/etcd
+            readOnly: true
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: etcd-client-certs
+            secret:
+              secretName: "etcd-client-certs"
+
+  - it: should not mount etcd TLS volumes when storeBackend is etcd but etcdUseTLS is false
+    set:
+      serverSettings.replicaCount: 1
+      applicationSettings:
+        storeBackend: "etcd"
+        etcdUseTLS: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: etcd-client-certs
+            mountPath: /etc/ssl/etcd
+            readOnly: true
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: etcd-client-certs
+            secret:
+              secretName: "etcd-client-certs"
+
+  - it: should not mount etcd TLS volumes when both storeBackend is not etcd and etcdUseTLS is false
+    set:
+      serverSettings.replicaCount: 1
+      applicationSettings:
+        storeBackend: "memory"
+        etcdUseTLS: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: etcd-client-certs
+            mountPath: /etc/ssl/etcd
+            readOnly: true
+      - notContains:
           path: spec.template.spec.volumes
           content:
             name: etcd-client-certs
@@ -457,16 +519,16 @@ tests:
           path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
           value: true
 
-  - it: should configure resources when specified
+  - it: should apply server resource profile
     set:
       serverSettings.replicaCount: 1
     asserts:
       - equal:
           path: spec.template.spec.containers[0].resources.requests.cpu
-          value: 1000m
+          value: 500m
       - equal:
           path: spec.template.spec.containers[0].resources.requests.memory
-          value: 256Mi
+          value: 1Gi
       - equal:
           path: spec.template.spec.containers[0].resources.limits.cpu
           value: "1"
@@ -496,3 +558,27 @@ tests:
       - equal:
           path: spec.template.metadata.annotations["foo"]
           value: bar
+
+  - it: should set GATEWAY_STORE_DYNAMODB_TABLE_NAME when storeBackend is dynamodb
+    set:
+      serverSettings.replicaCount: 1
+      applicationSettings:
+        storeBackend: "dynamodb"
+        dynamodbTableName: "my-table"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_STORE_DYNAMODB_TABLE_NAME
+            value: "my-table"
+
+  - it: should load dynamodb-aws-secrets via envFrom when storeBackend is dynamodb
+    set:
+      serverSettings.replicaCount: 1
+      applicationSettings:
+        storeBackend: "dynamodb"
+        dynamodbTableName: "my-table"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].envFrom[0].secretRef.name
+          value: dynamodb-aws-secrets

@@ -14,7 +14,6 @@ useTLS: true
 # Set to false to disable etcd installation. Below is a sample Etcd configuration if using the
 # included dependency.
 etcd:
-  etcd:
   enabled: false
   # Enable etcd persistence
   persistence:
@@ -56,11 +55,11 @@ etcd:
   # Resource limits
   resources:
     limits:
-      cpu: 500m
-      memory: 512Mi
+      cpu: "4"
+      memory: "10Gi"
     requests:
-      cpu: 250m
-      memory: 256Mi
+      cpu: "2"
+      memory: "8Gi"
 
 certManager:
   # -- Toggles the use of cert-manager for managing the TLS certificates. Setting this to false
@@ -74,7 +73,8 @@ external-dns:
 # The Itential image to use, its version, and its location
 image:
   # -- The image repository
-  repository: "497639811223.dkr.ecr.us-east-2.amazonaws.com/automation-gateway5"
+  # -- Contact Itential to get the correct image repository for your entitlement.
+  repository: 
   # -- The image tag
   tag: "5.1.1-amd64"
   # -- The image pull policy
@@ -97,8 +97,9 @@ securityContext: {}
 service:
   # -- The service type
   type: "LoadBalancer"
-  # -- The name of this Kubernetes service object
-  name: "iag5-service"
+  # -- Optional override for the service name. Defaults to "iag5-service".
+  # Changing this also affects runner service names ({name}-runner-{n}) and cert SANs.
+  # name: "iag5-service"
   # -- Annotations on the service object, passed through as is
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-type: nlb
@@ -161,18 +162,18 @@ resources:
   enabled: true
   runners:
     limits:
+      cpu: "6"
+      memory: "10Gi"
+    requests:
       cpu: "4"
       memory: "8Gi"
-    requests:
-      cpu: "1000m"
-      memory: "256Mi"
   servers:
     limits:
+      cpu: "2"
+      memory: "4Gi"
+    requests:
       cpu: "1"
       memory: "2Gi"
-    requests:
-      cpu: "1000m"
-      memory: "256Mi"
 
 livenessProbe:
   enabled: true
@@ -258,6 +259,14 @@ applicationSettings:
   # separated list: hostname1:port hostname2:port.
   etcdHosts: "etcd.default.svc.cluster.local:2379"
 
+  # DynamoDB settings
+  # -- The DynamoDB table name when storeBackend is set to "dynamodb"
+  dynamodbTableName: ""
+
+  # Environment variables passed to all deployment pods
+  env: {}
+    # VAR_NAME: VAR_VALUE
+
 tests:
   enabled: true
   processCount:
@@ -265,14 +274,6 @@ tests:
       min: 1  # Minimum processes for server pods
     runner:
       min: 1  # Minimum processes for runner pods
-
-  # DynamoDB settings
-  # -- The DynamoDB table name when storeBackend is set to "dynamodb"
-  dynamodbTableName: ""
-
-  # Environment variables passed to all of the deployment pods
-  env: {}
-    # VAR_NAME: VAR_VALUE
 
 # -- Additional volumes on the output Deployment definition.
 volumes: []
