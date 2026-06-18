@@ -236,7 +236,7 @@ When `create: false` (default), pods use the namespace `default` service account
 
 1. **`repository` has no default** — always supply the ECR image path.
 2. **`certManager.enabled: false`** when cert-manager is already installed cluster-wide (common in shared clusters).
-3. **`issuer.kind: ClusterIssuer`** if you're using a cluster-scoped issuer (see `values-aws-eks-NickA.yaml`).
+3. **`issuer.kind: ClusterIssuer`** if you're using a cluster-scoped issuer — common in shared clusters where the issuer is managed outside this chart.
 4. **runner replicaCount starts at 0** — distributed mode is opt-in.
 5. **etcd TLS secrets must be created before install** when using the etcd backend.
 6. **`connectInsecureEnabled`** must match the Itential Platform's TLS configuration.
