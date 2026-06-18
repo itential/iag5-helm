@@ -140,7 +140,7 @@ applicationSettings:
   dynamodbTableName: your-table-name
 ```
 
-AWS credentials are provided either via IRSA (recommended) or a static `dynamodb-aws-secrets` Kubernetes secret. The secret is optional -- if absent the AWS SDK falls through to IRSA. See `irsa-dynamodb-setup.md` for the full IRSA setup.
+AWS credentials are provided either via IRSA (recommended) or a static `dynamodb-aws-secrets` Kubernetes secret. The secret is optional -- if absent the AWS SDK falls through to IRSA. See the Service Account (IRSA) section in README.md for the full setup guide.
 
 Required IAM permissions: `GetItem`, `PutItem`, `UpdateItem`, `DeleteItem`, `Query`, `Scan`, `DescribeTable`, `BatchWriteItem`, `DescribeTimeToLive`, `UpdateTimeToLive`. IAG5 calls `DescribeTimeToLive` and `UpdateTimeToLive` on startup -- missing either will crash the pod.
 
@@ -228,7 +228,7 @@ serviceAccount:
   automountServiceAccountToken: false
 ```
 
-When `create: false` (default), pods use the namespace `default` service account. For IRSA, set `create: true`, give it a name, and annotate it with the IAM role ARN. The role trust policy must reference the cluster's OIDC provider -- see `irsa-dynamodb-setup.md`.
+When `create: false` (default), pods use the namespace `default` service account. For IRSA, set `create: true`, give it a name, and annotate it with the IAM role ARN. The role trust policy must reference the cluster's OIDC provider -- see README.md for details.
 
 ---
 
