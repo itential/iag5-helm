@@ -48,15 +48,24 @@ this secret is left out of the chart to allow for flexibility with its creation.
 
 ##### dynamodb-aws-secrets
 
-When using DynamoDB as the backend store, a Secret named "dynamodb-aws-secrets" is required. This
-Secret will contain the necessary AWS environment variables that are used when establishing
-connections to DynamoDB. The keys in this secret are used as environment variables and are probably
-these:
+When using DynamoDB as the backend store, AWS credentials must be available to the pod. There are
+two ways to provide them:
+
+**Option 1 — IRSA (recommended for EKS):** Configure a Kubernetes service account with an IAM role
+annotation. The chart creates the service account when `serviceAccount.create: true`. No secret is
+needed. See `irsa-dynamodb-setup.md` for the full setup guide including the required IAM policy
+permissions.
+
+**Option 2 — Static credentials:** Create a Secret named "dynamodb-aws-secrets" with the following
+keys. The chart will inject them as environment variables via `envFrom`.
 
 - AWS_ACCESS_KEY_ID
 - AWS_SECRET_ACCESS_KEY
 - AWS_SESSION_TOKEN
 - AWS_REGION
+
+The secret is marked optional in the chart. If it is absent and IRSA is configured, the AWS SDK
+will use the IRSA credentials. If neither is present, the pod will fail to connect to DynamoDB.
 
 #### Certificates
 
@@ -342,6 +351,10 @@ simply values that were used during development and testing.
 | service.annotations | object | `{"external-dns.alpha.kubernetes.io/hostname":"iag5.example.com","external-dns.alpha.kubernetes.io/ttl":"60","service.beta.kubernetes.io/aws-load-balancer-backend-protocol":"TCP","service.beta.kubernetes.io/aws-load-balancer-internal":"false","service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}` | Annotations on the service object, passed through as is |
 | service.name | string | `"iag5-service"` | The name of this Kubernetes service object |
 | service.type | string | `"LoadBalancer"` | The service type |
+| serviceAccount.annotations | object | `{}` | Annotations added to the service account. Set `eks.amazonaws.com/role-arn` here to enable IRSA. |
+| serviceAccount.automountServiceAccountToken | bool | `false` | Controls whether the service account token is automounted into pods. |
+| serviceAccount.create | bool | `false` | Specifies whether a service account should be created. |
+| serviceAccount.name | string | `""` | The name of the service account to use. Defaults to the chart fullname when create is true and name is empty. |
 | tolerations | list | `[]` | Additonal tolerations |
 | useTLS | bool | `true` | Turn on TLS connectivity between all the members. All on or all off. |
 | volumeMounts | list | `[]` | Additional volumeMounts on the output Deployment definition. |
