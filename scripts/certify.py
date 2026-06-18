@@ -330,6 +330,40 @@ def _verify_cert_chain(cert_pem, ca_pem):
 
 # ── Formatters ────────────────────────────────────────────────────────────────
 
+def _parse_meminfo(text):
+    """
+    Parse /proc/meminfo and return total, used, and available memory in MiB.
+    Computes used as MemTotal - MemAvailable (available already accounts for
+    reclaimable cache, making it more accurate than MemFree alone).
+    Returns a dict with total_mib, used_mib, available_mib, pct_used.
+    Returns None on any parse failure.
+    """
+    if not text:
+        return None
+    values = {}
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) >= 2:
+            key = parts[0].rstrip(":")
+            try:
+                values[key] = int(parts[1])
+            except ValueError:
+                pass
+    total = values.get("MemTotal", 0)
+    if not total:
+        return None
+    available = values.get("MemAvailable", 0)
+    used = total - available
+    def to_mib(kb):
+        return round(kb / 1024, 1)
+    return {
+        "total_mib":     to_mib(total),
+        "used_mib":      to_mib(used),
+        "available_mib": to_mib(available),
+        "pct_used":      round(used / total * 100, 1),
+    }
+
+
 def _redact_env(text):
     """
     Walk lines of 'env' command output and replace values whose key contains a
@@ -606,6 +640,12 @@ def _collect_pod(pod_name, component, namespace, skip_secrets=False):
     # ps aux — full process list, filtered in the renderer to iagctl lines only.
     data["ps"] = _kubectl_exec(pod_name, namespace, ["ps", "aux"])
 
+    # Memory — /proc/meminfo is always present in Linux containers; no extra tooling needed.
+    data["meminfo"] = _kubectl_exec(pod_name, namespace, ["cat", "/proc/meminfo"])
+
+    # Disk — df -h shows filesystem usage for all mounts including the pod writable layer.
+    data["disk"] = _kubectl_exec(pod_name, namespace, ["df", "-h"])
+
     # env — all environment variables, filtered to GATEWAY_* and redacted for secrets.
     # Collected regardless of skip_secrets: values are already redacted by _redact_env
     # and the output is filtered to GATEWAY_* config only — no raw secret material.
@@ -810,6 +850,25 @@ def _render_pod(pod_name, data):
         iag_lines = [l for l in ps.splitlines() if "iagctl" in l or l.startswith("USER")]
         if iag_lines:
             out.append("**iagctl entries (ps aux):**\n```\n" + "\n".join(iag_lines) + "\n```\n\n")
+
+    # Resources — memory from /proc/meminfo, disk from df -h.
+    out.append("#### Resources\n\n")
+    mem = _parse_meminfo(data.get("meminfo"))
+    if mem:
+        pct = f" ({mem['pct_used']}% used)"
+        rows = [
+            ("Total",     f"{mem['total_mib']} MiB"),
+            ("Used",      f"{mem['used_mib']} MiB{pct}"),
+            ("Available", f"{mem['available_mib']} MiB"),
+        ]
+        out.append("**Memory:**\n\n" + _table(["", ""], rows) + "\n\n")
+    else:
+        out.append("**Memory:** _Not available._\n\n")
+    disk = data.get("disk")
+    if disk:
+        out.append("**Disk:**\n\n```\n" + disk + "\n```\n\n")
+    else:
+        out.append("**Disk:** _Not available._\n\n")
 
     # Environment — GATEWAY_* vars only for focus; sorted for readability.
     out.append("#### Environment (GATEWAY_* variables, redacted)\n\n")
