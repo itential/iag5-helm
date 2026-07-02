@@ -48,15 +48,113 @@ this secret is left out of the chart to allow for flexibility with its creation.
 
 ##### dynamodb-aws-secrets
 
-When using DynamoDB as the backend store, a Secret named "dynamodb-aws-secrets" is required. This
-Secret will contain the necessary AWS environment variables that are used when establishing
-connections to DynamoDB. The keys in this secret are used as environment variables and are probably
-these:
+When using DynamoDB as the backend store, IAG5 needs AWS credentials to authenticate. There are
+two options:
+
+**Option 1 (recommended): IRSA (IAM Roles for Service Accounts)**
+
+On EKS, configure a Kubernetes service account annotated with an IAM role ARN. The EKS webhook
+injects a short-lived token into the pod and the AWS SDK exchanges it for temporary credentials
+automatically. No Kubernetes secret is required. See the Service Account (IRSA) section below.
+
+**Option 2: Static credentials**
+
+Create a Secret named `dynamodb-aws-secrets` with the following keys:
 
 - AWS_ACCESS_KEY_ID
 - AWS_SECRET_ACCESS_KEY
 - AWS_SESSION_TOKEN
 - AWS_REGION
+
+The chart marks this secret as optional. When IRSA is in use the secret should be absent or
+removed — if it exists, the static credentials take precedence over IRSA in the AWS SDK
+credential chain.
+
+#### Service Account (IRSA)
+
+On EKS, the recommended way to give IAG5 pods access to DynamoDB is IRSA. IRSA works by
+annotating a Kubernetes service account with an IAM role ARN. When a pod starts, the EKS webhook
+injects a short-lived OIDC token. The AWS SDK exchanges it for temporary, scoped credentials via
+`sts:AssumeRoleWithWebIdentity` — no passwords, no rotation, no secrets to distribute.
+
+**IAM policy — required DynamoDB permissions**
+
+The IAM role attached to the service account must allow the following actions on the DynamoDB
+table and its indexes:
+
+- `dynamodb:GetItem`
+- `dynamodb:PutItem`
+- `dynamodb:UpdateItem`
+- `dynamodb:DeleteItem`
+- `dynamodb:Query`
+- `dynamodb:Scan`
+- `dynamodb:DescribeTable`
+- `dynamodb:BatchWriteItem`
+- `dynamodb:DescribeTimeToLive`
+- `dynamodb:UpdateTimeToLive`
+
+IAG5 checks and configures TTL on the table at startup. Both `DescribeTimeToLive` and
+`UpdateTimeToLive` are required — pods will fail to start without them.
+
+**DynamoDB table schema**
+
+The table must be created with these keys:
+
+| Key | Type | Role |
+|:----|:-----|:-----|
+| `namespace` | String | Partition key |
+| `key` | String | Sort key |
+
+On-demand capacity mode is recommended for variable IAG5 workloads.
+
+**IAM trust policy**
+
+The role's trust policy must allow the EKS cluster's OIDC provider to assume the role. The OIDC
+provider ID is unique per cluster — do not copy it from another role. Verify it by decoding a
+service account token:
+
+```bash
+kubectl create token <service-account-name> -n <namespace> --audience sts.amazonaws.com \
+  | python3 -c "import sys,base64,json; p=sys.stdin.read().strip().split('.')[1]; print(json.loads(base64.b64decode(p+'=='))['iss'])"
+```
+
+The `iss` field contains the authoritative OIDC issuer URL for that cluster.
+
+**Helm values**
+
+```yaml
+serviceAccount:
+  create: true
+  name: iag5-serviceaccount
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::<account-id>:role/<role-name>
+  automountServiceAccountToken: false
+
+applicationSettings:
+  storeBackend: dynamodb
+  dynamodbTableName: <table-name>
+```
+
+**Verify IRSA is active after deployment**
+
+```bash
+kubectl exec -n <namespace> <iag5-pod> -- env | grep AWS_ROLE_ARN
+```
+
+**Deploying to a different EKS cluster**
+
+Each EKS cluster has its own OIDC provider ID. To reuse the same IAM role on a new cluster, add
+a second trust statement to the role referencing the new cluster's OIDC provider. No changes to
+the values file are needed — the role ARN stays the same.
+
+**Troubleshooting**
+
+`AccessDenied: Not authorized to perform sts:AssumeRoleWithWebIdentity` — the OIDC provider ID in
+the trust policy does not match the cluster. Decode a service account token (see above) to find
+the correct ID and update the trust policy.
+
+`AccessDeniedException: not authorized to perform dynamodb:DescribeTimeToLive` — the IAM policy
+is missing `DescribeTimeToLive` or `UpdateTimeToLive`. Add both actions.
 
 #### Certificates
 
@@ -189,18 +287,36 @@ applicationSettings:
 
 ### Using DynamoDB instead of Etcd
 
-Just change the `storeBackend` and add the DynamoDB table name.
+The `memory` and `local` backends are single-server only. Any multi-pod topology — multiple
+servers, runners, or both — requires etcd or DynamoDB as the backend.
+
+**With IRSA (recommended on EKS):**
 
 ```yaml
-# Configure all pods with these values
+serviceAccount:
+  create: true
+  name: iag5-serviceaccount
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::<account-id>:role/<role-name>
+  automountServiceAccountToken: false
+
 applicationSettings:
   clusterId: cluster_1
   storeBackend: dynamodb
+  dynamodbTableName: "your-table-name"
+```
 
-  # DynamoDB settings
-  dynamodbTableName: "itential-dynamodb-test"
-  env: {}
-  ```
+**With static credentials:**
+
+```yaml
+applicationSettings:
+  clusterId: cluster_1
+  storeBackend: dynamodb
+  dynamodbTableName: "your-table-name"
+```
+
+Create the `dynamodb-aws-secrets` secret before install with `AWS_ACCESS_KEY_ID`,
+`AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, and `AWS_REGION`.
 
 ### Using TLS connections
 
@@ -335,6 +451,10 @@ simply values that were used during development and testing.
 | port | int | `50051` | The intended port to use |
 | runnerSettings.replicaCount | int | `0` | The number of runners to use. Set to zero to disable distributed runners. |
 | securityContext | object | `{}` | Additional security context |
+| serviceAccount.annotations | object | `{}` | Annotations to add to the service account. Use to attach an IAM role ARN for IRSA (`eks.amazonaws.com/role-arn`). |
+| serviceAccount.automountServiceAccountToken | bool | `false` | Whether to automount the service account token into pods. |
+| serviceAccount.create | bool | `false` | Create a Kubernetes service account for IAG5 pods. Required for IRSA. |
+| serviceAccount.name | string | `""` | Name of the service account to create or use. When empty and create is true, defaults to the chart fullname. |
 | serverSettings.connectEnabled | bool | `true` | Enables or disables the connection to Gateway Manager. |
 | serverSettings.connectHosts | string | `"itential.example.com:8080"` | Configures the hostname and port used to connect to Gateway Manager. |
 | serverSettings.connectInsecureEnabled | bool | `false` | Determines whether the gateway verifies TLS certificates when it connects to Itential Platform. When set to true, the gateway skips TLS certificate verification. We strongly recommend enabling TLS certificate verification in production environments. |
@@ -342,6 +462,10 @@ simply values that were used during development and testing.
 | service.annotations | object | `{"external-dns.alpha.kubernetes.io/hostname":"iag5.example.com","external-dns.alpha.kubernetes.io/ttl":"60","service.beta.kubernetes.io/aws-load-balancer-backend-protocol":"TCP","service.beta.kubernetes.io/aws-load-balancer-internal":"false","service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}` | Annotations on the service object, passed through as is |
 | service.name | string | `"iag5-service"` | The name of this Kubernetes service object |
 | service.type | string | `"LoadBalancer"` | The service type |
+| serviceAccount.annotations | object | `{}` | Annotations added to the service account. Set `eks.amazonaws.com/role-arn` here to enable IRSA. |
+| serviceAccount.automountServiceAccountToken | bool | `false` | Controls whether the service account token is automounted into pods. |
+| serviceAccount.create | bool | `false` | Specifies whether a service account should be created. |
+| serviceAccount.name | string | `""` | The name of the service account to use. Defaults to the chart fullname when create is true and name is empty. |
 | tolerations | list | `[]` | Additonal tolerations |
 | useTLS | bool | `true` | Turn on TLS connectivity between all the members. All on or all off. |
 | volumeMounts | list | `[]` | Additional volumeMounts on the output Deployment definition. |

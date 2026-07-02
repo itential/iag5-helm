@@ -289,3 +289,14 @@ tolerations: []
 
 # -- Additional affinities
 affinity: {}
+
+# -- Service account configuration
+serviceAccount:
+  # -- Specifies whether a service account should be created
+  create: false
+  # -- The name of the service account to use. If create is true and name is empty, the full chart name is used.
+  name: ""
+  # -- Annotations to add to the service account. Use eks.amazonaws.com/role-arn for IRSA.
+  annotations: {}
+  # -- Controls whether the service account token is automounted into pods
+  automountServiceAccountToken: false

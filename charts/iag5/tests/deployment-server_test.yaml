@@ -582,3 +582,34 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].envFrom[0].secretRef.name
           value: dynamodb-aws-secrets
+      - equal:
+          path: spec.template.spec.containers[0].envFrom[0].secretRef.optional
+          value: true
+
+  - it: should use default service account when serviceAccount.create is false
+    set:
+      serverSettings.replicaCount: 1
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: default
+
+  - it: should use chart fullname as service account name when serviceAccount.create is true and name is empty
+    set:
+      serverSettings.replicaCount: 1
+      serviceAccount.create: true
+      serviceAccount.name: ""
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: RELEASE-NAME-iag5
+
+  - it: should use provided service account name when serviceAccount.create is true
+    set:
+      serverSettings.replicaCount: 1
+      serviceAccount.create: true
+      serviceAccount.name: iag5-serviceaccount
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: iag5-serviceaccount

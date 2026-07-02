@@ -41,6 +41,7 @@ All three are optional and toggled via values:
 | `deployment-runner.yaml` | N Runner Deployments (loop) | `runnerSettings.replicaCount > 0` |
 | `service.yaml` | LoadBalancer Service for servers | Always |
 | `service-runner.yaml` | ClusterIP Service per runner (loop) | `runnerSettings.replicaCount > 0` |
+| `serviceaccount.yaml` | Kubernetes ServiceAccount | `serviceAccount.create` |
 | `certificate.yaml` | cert-manager Certificate | `certificate.enabled` |
 | `issuer.yaml` | cert-manager Issuer/ClusterIssuer | `issuer.enabled` |
 | `_helpers.tpl` | Named template helpers | — |
@@ -137,8 +138,11 @@ applicationSettings:
 applicationSettings:
   storeBackend: dynamodb
   dynamodbTableName: your-table-name
-# Also requires secret: dynamodb-aws-secrets (injected via envFrom)
 ```
+
+AWS credentials are provided either via IRSA (recommended) or a static `dynamodb-aws-secrets` Kubernetes secret. The secret is optional -- if absent the AWS SDK falls through to IRSA. See the Service Account (IRSA) section in README.md for the full setup guide.
+
+Required IAM permissions: `GetItem`, `PutItem`, `UpdateItem`, `DeleteItem`, `Query`, `Scan`, `DescribeTable`, `BatchWriteItem`, `DescribeTimeToLive`, `UpdateTimeToLive`. IAG5 calls `DescribeTimeToLive` and `UpdateTimeToLive` on startup -- missing either will crash the pod.
 
 ---
 
@@ -152,7 +156,7 @@ These must exist in the namespace before install — the chart does **not** crea
 | `itential-gateway-secrets` | `gatewayEncryptionKey` | 256-char base64 encryption key |
 | `<imagePullSecrets[].name>` | Docker config | Pull image from ECR |
 | `etcd-client-certs` | `ca.crt`, `tls.crt`, `tls.key` | Etcd mTLS (if etcd backend + TLS) |
-| `dynamodb-aws-secrets` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_REGION` | DynamoDB auth |
+| `dynamodb-aws-secrets` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_REGION` | DynamoDB static credentials (optional when using IRSA) |
 
 ---
 
@@ -214,11 +218,27 @@ helm test <release-name>
 
 ---
 
+## Service Account (IRSA)
+
+```yaml
+serviceAccount:
+  create: false        # Set true to create the ServiceAccount
+  name: ""             # Defaults to chart fullname when empty
+  annotations: {}      # Add eks.amazonaws.com/role-arn here for IRSA
+  automountServiceAccountToken: false
+```
+
+When `create: false` (default), pods use the namespace `default` service account. For IRSA, set `create: true`, give it a name, and annotate it with the IAM role ARN. The role trust policy must reference the cluster's OIDC provider -- see README.md for details.
+
+---
+
 ## Common Gotchas
 
 1. **`repository` has no default** — always supply the ECR image path.
 2. **`certManager.enabled: false`** when cert-manager is already installed cluster-wide (common in shared clusters).
-3. **`issuer.kind: ClusterIssuer`** if you're using a cluster-scoped issuer (see `values-aws-eks-NickA.yaml`).
+3. **`issuer.kind: ClusterIssuer`** if you're using a cluster-scoped issuer — common in shared clusters where the issuer is managed outside this chart.
 4. **runner replicaCount starts at 0** — distributed mode is opt-in.
 5. **etcd TLS secrets must be created before install** when using the etcd backend.
 6. **`connectInsecureEnabled`** must match the Itential Platform's TLS configuration.
+7. **OIDC provider ID is cluster-specific** — never copy it from another IAM role. Decode a service account token from the target cluster to get the correct `iss` value: `kubectl create token <sa> -n <ns> --audience sts.amazonaws.com | python3 -c "import sys,base64,json; p=sys.stdin.read().strip().split('.')[1]; print(json.loads(base64.b64decode(p+'=='))['iss'])"`
+8. **DynamoDB requires `DescribeTimeToLive` and `UpdateTimeToLive`** in addition to the standard CRUD permissions. IAG5 calls both on startup and will crash without them.

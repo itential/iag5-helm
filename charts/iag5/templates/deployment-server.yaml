@@ -38,6 +38,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      serviceAccountName: {{ include "iag5.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -117,6 +118,7 @@ spec:
           envFrom:
             - secretRef:
                 name: dynamodb-aws-secrets
+                optional: true
           {{- end }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
