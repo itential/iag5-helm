@@ -7,3 +7,5 @@ lab-setup/
 charts/*/charts/*.tgz
 .cr-release-packages/
 .DS_Store
+.claude/
+scripts/*.md
