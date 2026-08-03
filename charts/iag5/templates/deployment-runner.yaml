@@ -62,6 +62,38 @@ spec:
               value: {{ $.Values.applicationSettings.clusterId | quote }}
             - name: GATEWAY_LOG_LEVEL
               value: {{ $.Values.applicationSettings.logLevel | default "INFO" | quote }}
+            - name: GATEWAY_LOG_CONSOLE_JSON
+              value: {{ $.Values.applicationSettings.logConsoleJson | quote }}
+            - name: GATEWAY_LOG_FILE_ENABLED
+              value: {{ $.Values.applicationSettings.logFileEnabled | quote }}
+            {{- if $.Values.applicationSettings.logFileEnabled }}
+            - name: GATEWAY_LOG_FILE_JSON
+              value: {{ $.Values.applicationSettings.logFileJson | quote }}
+            - name: GATEWAY_LOG_SERVER_DIR
+              value: {{ $.Values.applicationSettings.logServerDir | default "/var/log/gateway" | quote }}
+            {{- end }}
+            - name: GATEWAY_LOG_TIMESTAMP_TIMEZONE
+              value: {{ $.Values.applicationSettings.logTimestampTimezone | default "utc" | quote }}
+            - name: GATEWAY_TERMINAL_NO_COLOR
+              value: {{ $.Values.applicationSettings.noColor | quote }}
+            - name: GATEWAY_TERMINAL_TIMESTAMP_TIMEZONE
+              value: {{ $.Values.applicationSettings.terminalTimestampTimezone | default "utc" | quote }}
+            - name: GATEWAY_REGISTRY_DEFAULT_OVERRIDABLE
+              value: {{ $.Values.applicationSettings.registryDefaultOverridable | quote }}
+            - name: GATEWAY_APPLICATION_VENV_RETENTION_PERIOD
+              value: {{ $.Values.applicationSettings.venvRetentionPeriod | default "30d" | quote }}
+            - name: GATEWAY_APPLICATION_VENV_SWEEP_INTERVAL
+              value: {{ $.Values.applicationSettings.venvSweepInterval | default "24h" | quote }}
+            - name: GATEWAY_FEATURES_ANSIBLE_ENABLED
+              value: {{ $.Values.applicationSettings.featuresAnsibleEnabled | quote }}
+            - name: GATEWAY_FEATURES_HOSTKEYS_ENABLED
+              value: {{ $.Values.applicationSettings.featuresHostkeysEnabled | quote }}
+            - name: GATEWAY_FEATURES_MCP_ENABLED
+              value: {{ $.Values.applicationSettings.featuresMcpEnabled | quote }}
+            - name: GATEWAY_FEATURES_OPENTOFU_ENABLED
+              value: {{ $.Values.applicationSettings.featuresOpentofuEnabled | quote }}
+            - name: GATEWAY_FEATURES_PYTHON_ENABLED
+              value: {{ $.Values.applicationSettings.featuresPythonEnabled | quote }}
             - name: GATEWAY_STORE_BACKEND
               value: {{ $.Values.applicationSettings.storeBackend | default "memory" | quote }}
             {{- if eq $.Values.applicationSettings.storeBackend "etcd" }}
@@ -95,6 +127,10 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
             {{- end }}
+            - name: GATEWAY_RUNNER_PORT
+              value: {{ $.Values.port | default 50051 | quote }}
+            - name: GATEWAY_RUNNER_RUNTIME_DATA_DIR
+              value: {{ $.Values.runnerSettings.runtimeDataDir | default "/var/lib/gateway" | quote }}
             - name: GATEWAY_RUNNER_USE_TLS
               value: {{ $.Values.useTLS | default "false" | quote }}
             {{- if $.Values.useTLS }}

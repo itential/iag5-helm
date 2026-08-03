@@ -420,8 +420,23 @@ simply values that were used during development and testing.
 | applicationSettings.etcdTlsSecretName | string | `"etcd-tls-secret"` | The name of the etcd TLS secret. This is mounted as a volume by the deployment and contains the Etcd TLS certs and keys. |
 | applicationSettings.etcdUseClientCertAuth | bool | `true` | Enable certificate validation when connecting to Etcd. |
 | applicationSettings.etcdUseTLS | bool | `true` | Enable TLS when connecting the Etcd. |
+| applicationSettings.featuresAnsibleEnabled | bool | `true` | Enables or disables all Ansible features. |
+| applicationSettings.featuresHostkeysEnabled | bool | `true` | Enables or disables the hostkeys management commands. |
+| applicationSettings.featuresMcpEnabled | bool | `false` | Enables or disables MCP (Model Context Protocol) commands/endpoints. Available in Gateway 5.5+. Defaults to false in this chart (opt-in) rather than the vendor's own default of true, so upgrading does not silently enable new MCP surface area. |
+| applicationSettings.featuresOpentofuEnabled | bool | `true` | Enables or disables all OpenTofu features. |
+| applicationSettings.featuresPythonEnabled | bool | `true` | Enables or disables all Python features. |
+| applicationSettings.logConsoleJson | bool | `false` | Whether console logs display in JSON format. |
+| applicationSettings.logFileEnabled | bool | `false` | Whether the gateway writes logs to a file. Defaults to false in this chart (containers already have their stdout captured by the cluster's logging stack), unlike the vendor's own default of true. |
+| applicationSettings.logFileJson | bool | `false` | Whether file logs display in JSON format. Only relevant when logFileEnabled is true. |
 | applicationSettings.logLevel | string | `"DEBUG"` | Sets the verbosity of the logs that the gateway displays to the console and file logs. Possible values are: "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "DISABLED". |
+| applicationSettings.logServerDir | string | `"/var/log/gateway"` | Directory for the gateway.log file. Only relevant when logFileEnabled is true. |
+| applicationSettings.logTimestampTimezone | string | `"utc"` | Timezone for timestamps in gateway logs. Accepts "utc", "local", or a tz identifier such as "America/New_York". |
+| applicationSettings.noColor | bool | `false` | Whether console outputs and logs display in color. |
+| applicationSettings.registryDefaultOverridable | bool | `true` | Whether users can override the default PyPI or Ansible Galaxy registries when creating a Python or Ansible service. |
 | applicationSettings.storeBackend | string | `"memory"` | Sets the backend type for persistent data storage. Itential Automation Gateway (IAG) uses stores as key-value databases to persistently save objects. IAG supports three types of store backends: "local", "memory", "etcd", "dynamodb" |
+| applicationSettings.terminalTimestampTimezone | string | `"utc"` | Timezone for gateway terminal timestamps. Accepts "utc", "local", or a tz identifier. |
+| applicationSettings.venvRetentionPeriod | string | `"30d"` | Amount of idle time before the gateway removes a virtual environment. Accepts a Go duration string or a number of days. |
+| applicationSettings.venvSweepInterval | string | `"24h"` | How often the background pruner scans for idle virtual environments to remove. Accepts a Go duration string. |
 | certManager.enabled | bool | `true` | Toggles the use of cert-manager for managing the TLS certificates. Setting this to false means that creation of the TLS certificates will be manual and outside of the chart. |
 | certificate.dnsNames | list | `["iag5.example.com"]` | The list of static DNS names to include in the certificate. |
 | certificate.duration | string | `"2160h"` | Specifies how long the certificate should be valid for (its lifetime). |
@@ -450,15 +465,20 @@ simply values that were used during development and testing.
 | podSecurityContext | object | `{}` | Additional pod security context |
 | port | int | `50051` | The intended port to use |
 | runnerSettings.replicaCount | int | `0` | The number of runners to use. Set to zero to disable distributed runners. |
+| runnerSettings.runtimeDataDir | string | `"/var/lib/gateway"` | Location where the gateway stores virtual environments created during service execution. |
 | securityContext | object | `{}` | Additional security context |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account. Use to attach an IAM role ARN for IRSA (`eks.amazonaws.com/role-arn`). |
 | serviceAccount.automountServiceAccountToken | bool | `false` | Whether to automount the service account token into pods. |
 | serviceAccount.create | bool | `false` | Create a Kubernetes service account for IAG5 pods. Required for IRSA. |
 | serviceAccount.name | string | `""` | Name of the service account to create or use. When empty and create is true, defaults to the chart fullname. |
+| serverSettings.apiKeyExpiration | int | `1440` | The amount of time (in minutes) before a user API key expires. |
 | serverSettings.connectEnabled | bool | `true` | Enables or disables the connection to Gateway Manager. |
 | serverSettings.connectHosts | string | `"itential.example.com:8080"` | Configures the hostname and port used to connect to Gateway Manager. |
 | serverSettings.connectInsecureEnabled | bool | `false` | Determines whether the gateway verifies TLS certificates when it connects to Itential Platform. When set to true, the gateway skips TLS certificate verification. We strongly recommend enabling TLS certificate verification in production environments. |
+| serverSettings.connectProxySecretName | string | `""` | Name of a pre-existing Secret containing proxyUsername/proxyPassword keys, used only when connectProxyUrl is set. Leave empty if the proxy requires no authentication. |
+| serverSettings.connectProxyUrl | string | `""` | Outbound proxy URL for the Gateway Manager connection (e.g. http://proxy.example.com:8080). Leave empty to disable proxying. |
 | serverSettings.replicaCount | int | `1` | The number of servers to use. At least one server must be defined. |
+| serverSettings.runtimeDataDir | string | `"/var/lib/gateway"` | Location where the gateway stores virtual environments created during service execution. |
 | service.annotations | object | `{"external-dns.alpha.kubernetes.io/hostname":"iag5.example.com","external-dns.alpha.kubernetes.io/ttl":"60","service.beta.kubernetes.io/aws-load-balancer-backend-protocol":"TCP","service.beta.kubernetes.io/aws-load-balancer-internal":"false","service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}` | Annotations on the service object, passed through as is |
 | service.name | string | `"iag5-service"` | The name of this Kubernetes service object |
 | service.type | string | `"LoadBalancer"` | The service type |

@@ -57,6 +57,192 @@ tests:
             name: GATEWAY_SERVER_USE_TLS
             value: "false"
 
+  - it: should set GATEWAY_SERVER_PORT from top-level port value
+    set:
+      serverSettings.replicaCount: 1
+      port: 6000
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_PORT
+            value: "6000"
+
+  - it: should set apiKeyExpiration and runtimeDataDir defaults
+    set:
+      serverSettings.replicaCount: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_API_KEY_EXPIRATION
+            value: "1440"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_SERVER_RUNTIME_DATA_DIR
+            value: "/var/lib/gateway"
+
+  - it: should set feature toggle environment variables with default values
+    set:
+      serverSettings.replicaCount: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_FEATURES_ANSIBLE_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_FEATURES_HOSTKEYS_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_FEATURES_MCP_ENABLED
+            value: "false"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_FEATURES_OPENTOFU_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_FEATURES_PYTHON_ENABLED
+            value: "true"
+
+  - it: should allow overriding feature toggles
+    set:
+      serverSettings.replicaCount: 1
+      applicationSettings.featuresMcpEnabled: true
+      applicationSettings.featuresPythonEnabled: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_FEATURES_MCP_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_FEATURES_PYTHON_ENABLED
+            value: "false"
+
+  - it: should set terminal and registry environment variables with default values
+    set:
+      serverSettings.replicaCount: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_TERMINAL_NO_COLOR
+            value: "false"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_TERMINAL_TIMESTAMP_TIMEZONE
+            value: "utc"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_REGISTRY_DEFAULT_OVERRIDABLE
+            value: "true"
+
+  - it: should set venv retention environment variables with default values
+    set:
+      serverSettings.replicaCount: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_APPLICATION_VENV_RETENTION_PERIOD
+            value: "30d"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_APPLICATION_VENV_SWEEP_INTERVAL
+            value: "24h"
+
+  - it: should default logFileEnabled to false and omit file-only log vars
+    set:
+      serverSettings.replicaCount: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_LOG_FILE_ENABLED
+            value: "false"
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_LOG_SERVER_DIR
+
+  - it: should include file-only log vars when logFileEnabled is true
+    set:
+      serverSettings.replicaCount: 1
+      applicationSettings.logFileEnabled: true
+      applicationSettings.logServerDir: "/custom/log/dir"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_LOG_FILE_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_LOG_SERVER_DIR
+            value: "/custom/log/dir"
+
+  - it: should not set proxy environment variables when connectProxyUrl is empty
+    set:
+      serverSettings.replicaCount: 1
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_CONNECT_PROXY_URL
+
+  - it: should set proxy URL only when connectProxySecretName is not provided
+    set:
+      serverSettings.replicaCount: 1
+      serverSettings.connectProxyUrl: "http://proxy.example.com:8080"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_CONNECT_PROXY_URL
+            value: "http://proxy.example.com:8080"
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_CONNECT_PROXY_USERNAME
+
+  - it: should set proxy credentials from secretKeyRef when connectProxySecretName is provided
+    set:
+      serverSettings.replicaCount: 1
+      serverSettings.connectProxyUrl: "http://proxy.example.com:8080"
+      serverSettings.connectProxySecretName: "my-proxy-secret"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_CONNECT_PROXY_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: my-proxy-secret
+                key: proxyUsername
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_CONNECT_PROXY_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: my-proxy-secret
+                key: proxyPassword
+
   - it: should set TLS environment variables when useTLS is true
     set:
       serverSettings.replicaCount: 1
