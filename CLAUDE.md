@@ -75,7 +75,7 @@ applicationSettings:
 ```yaml
 # Top-level
 hostname: iag5.example.com
-port: 50051
+port: 50051                # Also wired to GATEWAY_SERVER_PORT/GATEWAY_RUNNER_PORT, not just containerPort
 useTLS: true
 
 # Nested under applicationSettings:
@@ -84,6 +84,53 @@ applicationSettings:
   logLevel: DEBUG
   storeBackend: memory      # Options: memory | local | etcd | dynamodb
 ```
+
+### Feature Toggles, Terminal, Registry, and Venv Settings
+
+All under `applicationSettings`, applied identically to both server and runner pods:
+
+```yaml
+applicationSettings:
+  # Feature toggles
+  featuresAnsibleEnabled: true
+  featuresHostkeysEnabled: true
+  featuresMcpEnabled: false    # Deliberately false -- vendor default is true (Gateway 5.5+).
+                                # Opt-in so upgrading doesn't silently expose new MCP surface area.
+  featuresOpentofuEnabled: true
+  featuresPythonEnabled: true
+
+  # Terminal output
+  noColor: false
+  terminalTimestampTimezone: "utc"
+
+  # Service registry
+  registryDefaultOverridable: true
+
+  # Virtual environment cleanup (Gateway 5.4+)
+  venvRetentionPeriod: "30d"
+  venvSweepInterval: "24h"
+
+  # Logging (beyond logLevel above)
+  logConsoleJson: false
+  logFileEnabled: false   # Deliberately false -- vendor default is true. Containers already have
+                           # stdout captured by the cluster's logging stack; writing to a file
+                           # inside the ephemeral container filesystem is not useful here.
+  logFileJson: false       # Only rendered when logFileEnabled is true
+  logServerDir: "/var/log/gateway"  # Only rendered when logFileEnabled is true
+  logTimestampTimezone: "utc"
+```
+
+**Note on `server_ha_is_primary`**: the vendor's `[connect]` section has a `server_ha_is_primary` flag for designating one HA node as primary. This chart intentionally does not implement it -- `serverSettings.replicaCount > 1` deploys interchangeable replicas via a plain `Deployment`, with no stable per-pod identity to pin a "primary" designation to (that would require a `StatefulSet`). Gateway Manager arbitrates which replica's connection is active without an explicit primary flag.
+
+### Outbound Proxy (Gateway Manager connection)
+
+```yaml
+serverSettings:
+  connectProxyUrl: "http://proxy.example.com:8080"   # Empty disables proxying (default)
+  connectProxySecretName: "my-proxy-secret"           # Optional -- only needed if the proxy requires auth
+```
+
+When `connectProxySecretName` is set, it must contain `proxyUsername`/`proxyPassword` keys -- these are injected via `secretKeyRef`, consistent with how every other credential in this chart is handled (never as plaintext values).
 
 ### Image
 
@@ -157,6 +204,7 @@ These must exist in the namespace before install — the chart does **not** crea
 | `<imagePullSecrets[].name>` | Docker config | Pull image from ECR |
 | `etcd-client-certs` | `ca.crt`, `tls.crt`, `tls.key` | Etcd mTLS (if etcd backend + TLS) |
 | `dynamodb-aws-secrets` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_REGION` | DynamoDB static credentials (optional when using IRSA) |
+| `<serverSettings.connectProxySecretName>` | `proxyUsername`, `proxyPassword` | Gateway Manager proxy auth (optional, only if the proxy requires credentials) |
 
 ---
 
@@ -242,3 +290,5 @@ When `create: false` (default), pods use the namespace `default` service account
 6. **`connectInsecureEnabled`** must match the Itential Platform's TLS configuration.
 7. **OIDC provider ID is cluster-specific** — never copy it from another IAM role. Decode a service account token from the target cluster to get the correct `iss` value: `kubectl create token <sa> -n <ns> --audience sts.amazonaws.com | python3 -c "import sys,base64,json; p=sys.stdin.read().strip().split('.')[1]; print(json.loads(base64.b64decode(p+'=='))['iss'])"`
 8. **DynamoDB requires `DescribeTimeToLive` and `UpdateTimeToLive`** in addition to the standard CRUD permissions. IAG5 calls both on startup and will crash without them.
+9. **`port` actually matters now** — it's wired to `GATEWAY_SERVER_PORT`/`GATEWAY_RUNNER_PORT`, not just `containerPort`. Before this was fixed, overriding `port` away from `50051` silently broke connectivity: Kubernetes routed to the new port while `iagctl` kept listening on its own default.
+10. **Never add `| default "true"` (or any non-empty default) to a boolean values.yaml field in a template.** Sprig's `default` treats an explicit `false` as "empty" and substitutes the fallback anyway, silently coercing `false` back to `true`. Since every boolean already has a real default in `values.yaml`, templates should render it with a plain `| quote` — no `default` filter needed or safe to use.

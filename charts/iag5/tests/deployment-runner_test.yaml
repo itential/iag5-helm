@@ -153,6 +153,140 @@ tests:
             name: GATEWAY_RUNNER_ANNOUNCEMENT_ADDRESS
             value: "iag5-service-runner-0.NAMESPACE.svc.cluster.local"
 
+  - it: should set GATEWAY_RUNNER_PORT from top-level port value
+    set:
+      runnerSettings.replicaCount: 1
+      port: 6000
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_PORT
+            value: "6000"
+
+  - it: should set runtimeDataDir default
+    set:
+      runnerSettings.replicaCount: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_RUNNER_RUNTIME_DATA_DIR
+            value: "/var/lib/gateway"
+
+  - it: should set feature toggle environment variables with default values
+    set:
+      runnerSettings.replicaCount: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_FEATURES_ANSIBLE_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_FEATURES_HOSTKEYS_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_FEATURES_MCP_ENABLED
+            value: "false"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_FEATURES_OPENTOFU_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_FEATURES_PYTHON_ENABLED
+            value: "true"
+
+  - it: should allow overriding feature toggles
+    set:
+      runnerSettings.replicaCount: 1
+      applicationSettings.featuresMcpEnabled: true
+      applicationSettings.featuresPythonEnabled: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_FEATURES_MCP_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_FEATURES_PYTHON_ENABLED
+            value: "false"
+
+  - it: should set terminal and registry environment variables with default values
+    set:
+      runnerSettings.replicaCount: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_TERMINAL_NO_COLOR
+            value: "false"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_TERMINAL_TIMESTAMP_TIMEZONE
+            value: "utc"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_REGISTRY_DEFAULT_OVERRIDABLE
+            value: "true"
+
+  - it: should set venv retention environment variables with default values
+    set:
+      runnerSettings.replicaCount: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_APPLICATION_VENV_RETENTION_PERIOD
+            value: "30d"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_APPLICATION_VENV_SWEEP_INTERVAL
+            value: "24h"
+
+  - it: should default logFileEnabled to false and omit file-only log vars
+    set:
+      runnerSettings.replicaCount: 1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_LOG_FILE_ENABLED
+            value: "false"
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_LOG_SERVER_DIR
+
+  - it: should include file-only log vars when logFileEnabled is true
+    set:
+      runnerSettings.replicaCount: 1
+      applicationSettings.logFileEnabled: true
+      applicationSettings.logServerDir: "/custom/log/dir"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_LOG_FILE_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GATEWAY_LOG_SERVER_DIR
+            value: "/custom/log/dir"
+
   - it: should set TLS environment variables when useTLS is true
     set:
       runnerSettings.replicaCount: 1

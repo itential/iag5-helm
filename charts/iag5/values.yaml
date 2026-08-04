@@ -226,6 +226,14 @@ serverSettings:
   # Platform. When set to true, the gateway skips TLS certificate verification. We strongly
   # recommend enabling TLS certificate verification in production environments.
   connectInsecureEnabled: false
+  # -- The amount of time (in minutes) before a user API key expires.
+  apiKeyExpiration: 1440
+  # -- Outbound proxy URL for the Gateway Manager connection (e.g. http://proxy.example.com:8080).
+  # Leave empty to disable proxying.
+  connectProxyUrl: ""
+  # -- Name of a pre-existing Secret containing proxyUsername/proxyPassword keys, used only when
+  # connectProxyUrl is set. Leave empty if the proxy requires no authentication.
+  connectProxySecretName: ""
   # Environment variables passed to the runner deployment pods
   env: {}
     # VAR_NAME: VAR_VALUE
@@ -262,6 +270,56 @@ applicationSettings:
   # DynamoDB settings
   # -- The DynamoDB table name when storeBackend is set to "dynamodb"
   dynamodbTableName: ""
+
+  # -- Location where the gateway stores virtual environments created during service execution.
+  # Shared by server and runner pods since both use the same default.
+  runtimeDataDir: "/var/lib/gateway"
+  # -- Amount of idle time before the gateway removes a virtual environment. Accepts a Go
+  # duration string or a number of days (e.g. "30d").
+  venvRetentionPeriod: "30d"
+  # -- How often the background pruner scans for idle virtual environments to remove. Accepts
+  # a Go duration string.
+  venvSweepInterval: "24h"
+
+  # Log settings
+  # -- Whether console logs display in JSON format.
+  logConsoleJson: false
+  # -- Whether the gateway writes logs to a file. Defaults to false in this chart (containers
+  # already have their stdout captured by the cluster's logging stack), unlike the vendor's
+  # own default of true.
+  logFileEnabled: false
+  # -- Whether file logs display in JSON format. Only relevant when logFileEnabled is true.
+  logFileJson: false
+  # -- Directory for the gateway.log file. Only relevant when logFileEnabled is true.
+  logServerDir: "/var/log/gateway"
+  # -- Timezone for timestamps in gateway logs. Accepts "utc", "local", or a tz identifier
+  # such as "America/New_York".
+  logTimestampTimezone: "utc"
+
+  # Terminal settings
+  # -- Whether console outputs and logs display in color.
+  noColor: false
+  # -- Timezone for gateway terminal timestamps. Accepts "utc", "local", or a tz identifier.
+  terminalTimestampTimezone: "utc"
+
+  # Registry settings
+  # -- Whether users can override the default PyPI or Ansible Galaxy registries when creating
+  # a Python or Ansible service.
+  registryDefaultOverridable: true
+
+  # Feature toggles - applied to both server and runner pods
+  # -- Enables or disables all Ansible features.
+  featuresAnsibleEnabled: true
+  # -- Enables or disables the hostkeys management commands.
+  featuresHostkeysEnabled: true
+  # -- Enables or disables MCP (Model Context Protocol) commands/endpoints. Available in
+  # Gateway 5.5+. Defaults to false in this chart (opt-in) rather than the vendor's own
+  # default of true, so upgrading does not silently enable new MCP surface area.
+  featuresMcpEnabled: false
+  # -- Enables or disables all OpenTofu features.
+  featuresOpentofuEnabled: true
+  # -- Enables or disables all Python features.
+  featuresPythonEnabled: true
 
   # Environment variables passed to all deployment pods
   env: {}
