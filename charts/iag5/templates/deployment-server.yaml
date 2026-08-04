@@ -123,7 +123,7 @@ spec:
             - name: GATEWAY_SERVER_API_KEY_EXPIRATION
               value: {{ .Values.serverSettings.apiKeyExpiration | default 1440 | quote }}
             - name: GATEWAY_SERVER_RUNTIME_DATA_DIR
-              value: {{ .Values.serverSettings.runtimeDataDir | default "/var/lib/gateway" | quote }}
+              value: {{ .Values.applicationSettings.runtimeDataDir | default "/var/lib/gateway" | quote }}
             - name: GATEWAY_CONNECT_ENABLED
               value: {{ .Values.serverSettings.connectEnabled | default "false" | quote }}
             - name: GATEWAY_CONNECT_INSECURE_TLS

@@ -433,6 +433,7 @@ simply values that were used during development and testing.
 | applicationSettings.logTimestampTimezone | string | `"utc"` | Timezone for timestamps in gateway logs. Accepts "utc", "local", or a tz identifier such as "America/New_York". |
 | applicationSettings.noColor | bool | `false` | Whether console outputs and logs display in color. |
 | applicationSettings.registryDefaultOverridable | bool | `true` | Whether users can override the default PyPI or Ansible Galaxy registries when creating a Python or Ansible service. |
+| applicationSettings.runtimeDataDir | string | `"/var/lib/gateway"` | Location where the gateway stores virtual environments created during service execution. Shared by server and runner pods since both use the same default. |
 | applicationSettings.storeBackend | string | `"memory"` | Sets the backend type for persistent data storage. Itential Automation Gateway (IAG) uses stores as key-value databases to persistently save objects. IAG supports three types of store backends: "local", "memory", "etcd", "dynamodb" |
 | applicationSettings.terminalTimestampTimezone | string | `"utc"` | Timezone for gateway terminal timestamps. Accepts "utc", "local", or a tz identifier. |
 | applicationSettings.venvRetentionPeriod | string | `"30d"` | Amount of idle time before the gateway removes a virtual environment. Accepts a Go duration string or a number of days. |
@@ -465,7 +466,6 @@ simply values that were used during development and testing.
 | podSecurityContext | object | `{}` | Additional pod security context |
 | port | int | `50051` | The intended port to use |
 | runnerSettings.replicaCount | int | `0` | The number of runners to use. Set to zero to disable distributed runners. |
-| runnerSettings.runtimeDataDir | string | `"/var/lib/gateway"` | Location where the gateway stores virtual environments created during service execution. |
 | securityContext | object | `{}` | Additional security context |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account. Use to attach an IAM role ARN for IRSA (`eks.amazonaws.com/role-arn`). |
 | serviceAccount.automountServiceAccountToken | bool | `false` | Whether to automount the service account token into pods. |
@@ -478,7 +478,6 @@ simply values that were used during development and testing.
 | serverSettings.connectProxySecretName | string | `""` | Name of a pre-existing Secret containing proxyUsername/proxyPassword keys, used only when connectProxyUrl is set. Leave empty if the proxy requires no authentication. |
 | serverSettings.connectProxyUrl | string | `""` | Outbound proxy URL for the Gateway Manager connection (e.g. http://proxy.example.com:8080). Leave empty to disable proxying. |
 | serverSettings.replicaCount | int | `1` | The number of servers to use. At least one server must be defined. |
-| serverSettings.runtimeDataDir | string | `"/var/lib/gateway"` | Location where the gateway stores virtual environments created during service execution. |
 | service.annotations | object | `{"external-dns.alpha.kubernetes.io/hostname":"iag5.example.com","external-dns.alpha.kubernetes.io/ttl":"60","service.beta.kubernetes.io/aws-load-balancer-backend-protocol":"TCP","service.beta.kubernetes.io/aws-load-balancer-internal":"false","service.beta.kubernetes.io/aws-load-balancer-type":"nlb"}` | Annotations on the service object, passed through as is |
 | service.name | string | `"iag5-service"` | The name of this Kubernetes service object |
 | service.type | string | `"LoadBalancer"` | The service type |

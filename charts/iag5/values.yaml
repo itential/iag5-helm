@@ -208,8 +208,6 @@ readinessProbe:
 runnerSettings:
   # -- The number of runners to use. Set to zero to disable distributed runners.
   replicaCount: 0
-  # -- Location where the gateway stores virtual environments created during service execution.
-  runtimeDataDir: "/var/lib/gateway"
   # Environment variables passed to the runner deployment pods
   env: {}
     # VAR_NAME: VAR_VALUE
@@ -230,8 +228,6 @@ serverSettings:
   connectInsecureEnabled: false
   # -- The amount of time (in minutes) before a user API key expires.
   apiKeyExpiration: 1440
-  # -- Location where the gateway stores virtual environments created during service execution.
-  runtimeDataDir: "/var/lib/gateway"
   # -- Outbound proxy URL for the Gateway Manager connection (e.g. http://proxy.example.com:8080).
   # Leave empty to disable proxying.
   connectProxyUrl: ""
@@ -275,6 +271,9 @@ applicationSettings:
   # -- The DynamoDB table name when storeBackend is set to "dynamodb"
   dynamodbTableName: ""
 
+  # -- Location where the gateway stores virtual environments created during service execution.
+  # Shared by server and runner pods since both use the same default.
+  runtimeDataDir: "/var/lib/gateway"
   # -- Amount of idle time before the gateway removes a virtual environment. Accepts a Go
   # duration string or a number of days (e.g. "30d").
   venvRetentionPeriod: "30d"

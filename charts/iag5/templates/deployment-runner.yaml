@@ -130,7 +130,7 @@ spec:
             - name: GATEWAY_RUNNER_PORT
               value: {{ $.Values.port | default 50051 | quote }}
             - name: GATEWAY_RUNNER_RUNTIME_DATA_DIR
-              value: {{ $.Values.runnerSettings.runtimeDataDir | default "/var/lib/gateway" | quote }}
+              value: {{ $.Values.applicationSettings.runtimeDataDir | default "/var/lib/gateway" | quote }}
             - name: GATEWAY_RUNNER_USE_TLS
               value: {{ $.Values.useTLS | default "false" | quote }}
             {{- if $.Values.useTLS }}
