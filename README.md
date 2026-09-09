@@ -362,6 +362,95 @@ Deployments will mount this secret as files whose paths are described by
 `GATEWAY_STORE_ETCD_CA_CERTIFICATE_FILE`, `GATEWAY_STORE_ETCD_CERTIFICATE_FILE`, and
 `GATEWAY_STORE_ETCD_PRIVATE_KEY_FILE`.
 
+### Multiple Independent AIO Gateways (Virtual Cluster)
+
+Gateway Manager's Virtual Cluster feature groups multiple independently-registered physical
+gateway clusters (a primary plus one or more backups, with failover) into one logical cluster
+that workflows target. This chart doesn't need a special "virtual cluster mode" to support that — each
+Helm release just needs to produce one correctly-identified physical gateway, and Gateway Manager
+does the grouping. This has been verified end-to-end: two AIO releases, each registered with
+Gateway Manager under its own `clusterId`, combined into a virtual cluster (one primary, one
+backup), running real services through IAP workflows.
+
+**Deploy each AIO into its own namespace.** `service.name` (default `iag5-service`) and
+`issuer.name` (default `iag5-ca-issuer`) are not templated with the release name — two releases
+in the *same* namespace will collide on both objects. Separate namespaces avoid this without
+having to override either value.
+
+Example values for two independent AIOs, `aio-1` and `aio-2`, registering with the same IAP:
+
+```yaml
+# values-aio-1.yaml
+hostname: iag5-aio-1.example.com
+port: 50051
+useTLS: true
+
+certManager:
+  enabled: false   # set true only if cert-manager isn't already installed cluster-wide
+
+issuer:
+  name: iag5-aio-1-ca-issuer
+  caSecretName: itential-ca
+
+certificate:
+  issuerRef:
+    name: iag5-aio-1-ca-issuer
+  dnsNames:
+    - iag5-aio-1.example.com
+  # NOTE: the certificate.yaml template reads `.Values.certificate.ipAddresses` (plural), but
+  # this file's own key above is documented (and used everywhere else) as `ipAddress` (singular).
+  # The singular key is silently ignored — use `ipAddresses` if you need static IP SANs.
+
+image:
+  repository: <your-ecr-repo>/automation-gateway5
+  tag: "5.2.1-amd64"   # match this to your `iagctl` client version — see Gotchas below
+imagePullSecrets:
+  - name: ecr-secret
+
+runnerSettings:
+  replicaCount: 0
+serverSettings:
+  replicaCount: 1
+  connectEnabled: true
+  connectHosts: "<iap-host-or-ip>:8080"       # Gateway Manager's websocket port, not the UI port
+  connectInsecureEnabled: true                # set false if the IAP's cert chains to a CA this cluster trusts
+  env:
+    # The chart binds the gRPC listener to the pod's own IP by default (via status.podIP), which
+    # works fine for in-cluster Service traffic but breaks `kubectl port-forward` (it connects via
+    # loopback inside the pod's network namespace). Override to 0.0.0.0 if you need port-forward access.
+    GATEWAY_SERVER_LISTEN_ADDRESS: "0.0.0.0"
+
+applicationSettings:
+  clusterId: aio_cluster_1   # this is what Gateway Manager keys the physical gateway on
+  storeBackend: memory
+
+resources:
+  enabled: false   # set true (the default) in a cluster with real capacity to spare
+```
+
+`values-aio-2.yaml` is identical except `issuer.name`/`certificate.issuerRef.name`/`hostname`/
+`dnsNames`/`applicationSettings.clusterId` (use `aio_cluster_2`).
+
+```bash
+helm install iag5-aio-1 . -f values-aio-1.yaml -n iag5-aio-1 --create-namespace
+helm install iag5-aio-2 . -f values-aio-2.yaml -n iag5-aio-2 --create-namespace
+```
+
+**Registering with Gateway Manager and creating the virtual cluster are IAP-side steps, not
+chart-side.** Each gateway needs its leaf/endpoint TLS certificate (from its
+`<release>-tls-secret`, `tls.crt` — not the CA) uploaded to Gateway Manager and attached to a
+gateway record matching its `clusterId`. Only then does the gateway's connection to
+`serverSettings.connectHosts` succeed — until a certificate is attached, the gateway will loop on
+`No certificates assigned to <clusterId>`. Once both physical gateways are registered and
+connected, create the virtual cluster (`primary_cluster_id` / `backup_cluster_ids`) via Gateway
+Manager.
+
+**Gotchas found deploying two AIOs against one IAP:**
+
+- **`storeBackend: memory` means nothing persists across pod restarts** — any `iagctl create
+  secret`/`create repository`/`create service` state is gone after a redeploy, cert rotation, or
+  eviction, and has to be recreated.
+
 ### Run the Chart
 
 Clone this repo, adhere to the requirements, modify values.yaml appropriately, and install into your
