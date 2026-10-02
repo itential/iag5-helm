@@ -305,7 +305,7 @@ simply values that were used during development and testing.
 | applicationSettings.etcdUseClientCertAuth | bool | `true` | Enable certificate validation when connecting to Etcd. |
 | applicationSettings.etcdUseTLS | bool | `true` | Enable TLS when connecting the Etcd. |
 | applicationSettings.logLevel | string | `"DEBUG"` | Sets the verbosity of the logs that the gateway displays to the console and file logs. Possible values are: "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "DISABLED". |
-| applicationSettings.storeBackend | string | `"memory"` | Sets the backend type for persistent data storage. Itential Automation Gateway (IAG) uses stores as key-value databases to persistently save objects. IAG supports three types of store backends: "local", "memory", "etcd", "dynamodb" |
+| applicationSettings.storeBackend | string | `"memory"` | Sets the backend type for persistent data storage. Itential Gateway uses stores as key-value databases to persistently save objects. Gateway supports three types of store backends: "local", "memory", "etcd", "dynamodb" |
 | certManager.enabled | bool | `true` | Toggles the use of cert-manager for managing the TLS certificates. Setting this to false means that creation of the TLS certificates will be manual and outside of the chart. |
 | certificate.dnsNames | list | `["iag5.example.com"]` | The list of static DNS names to include in the certificate. |
 | certificate.duration | string | `"2160h"` | Specifies how long the certificate should be valid for (its lifetime). |
